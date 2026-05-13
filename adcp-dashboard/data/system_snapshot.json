@@ -1,0 +1,233 @@
+{
+  "metadata": {
+    "generated_at": "2026-05-13T14:09:59.214Z",
+    "system_date": "2026-05-10",
+    "advertiser_count": 5,
+    "publisher_count": 5
+  },
+  "profiles": {
+    "flipkart": {
+      "base_annual_budget": 900000000,
+      "ipl_multiplier": 1.5,
+      "festive_multiplier": 3.5,
+      "roas_base": 5.5,
+      "genders": [
+        "Both",
+        "M",
+        "F"
+      ],
+      "brands": [
+        "Flipkart Minutes",
+        "Flipkart Fashion",
+        "Cleartrip",
+        "Shopsy",
+        "Mobiles"
+      ],
+      "exclusions": [
+        "Amazon.in"
+      ]
+    },
+    "amazon": {
+      "base_annual_budget": 1000000000,
+      "ipl_multiplier": 1.2,
+      "festive_multiplier": 4,
+      "roas_base": 5.2,
+      "genders": [
+        "Both",
+        "M",
+        "F"
+      ],
+      "brands": [
+        "Amazon Prime",
+        "Amazon Fresh",
+        "Amazon Pay",
+        "Daily Essentials"
+      ],
+      "exclusions": [
+        "Myntra"
+      ],
+      "brandExclusions": {
+        "Amazon Prime": [
+          "JioHotstar"
+        ]
+      }
+    },
+    "jio": {
+      "base_annual_budget": 60000000,
+      "ipl_multiplier": 3,
+      "festive_multiplier": 1.2,
+      "roas_base": 4.5,
+      "genders": [
+        "Both"
+      ],
+      "brands": [
+        "JioAirFiber",
+        "JioMart",
+        "Jio5G",
+        "AJIO"
+      ],
+      "brandExclusions": {
+        "JioMart": [
+          "Myntra",
+          "Amazon.in"
+        ]
+      }
+    },
+    "hul": {
+      "base_annual_budget": 1500000000,
+      "ipl_multiplier": 1.8,
+      "festive_multiplier": 1.5,
+      "roas_base": 4.8,
+      "genders": [
+        "F",
+        "Both"
+      ],
+      "brands": [
+        "Lakme",
+        "Dove",
+        "Surf Excel",
+        "Ponds",
+        "Tresemmé",
+        "Knorr",
+        "Horlicks"
+      ]
+    },
+    "hdfc": {
+      "base_annual_budget": 150000000,
+      "ipl_multiplier": 2,
+      "festive_multiplier": 1.5,
+      "roas_base": 5,
+      "genders": [
+        "Both",
+        "M"
+      ],
+      "brands": [
+        "Credit Cards",
+        "Home Loans",
+        "PayZapp",
+        "HDFC Life",
+        "Personal Loans"
+      ]
+    }
+  },
+  "data_summary": {
+    "flipkart": {
+      "budget_config": {
+        "base_annual_budget": 900000000,
+        "ipl_multiplier": 1.5,
+        "festive_multiplier": 3.5,
+        "roas_base": 5.5,
+        "genders": [
+          "Both",
+          "M",
+          "F"
+        ],
+        "brands": [
+          "Flipkart Minutes",
+          "Flipkart Fashion",
+          "Cleartrip",
+          "Shopsy",
+          "Mobiles"
+        ],
+        "exclusions": [
+          "Amazon.in"
+        ]
+      },
+      "sample_campaigns": []
+    },
+    "amazon": {
+      "budget_config": {
+        "base_annual_budget": 1000000000,
+        "ipl_multiplier": 1.2,
+        "festive_multiplier": 4,
+        "roas_base": 5.2,
+        "genders": [
+          "Both",
+          "M",
+          "F"
+        ],
+        "brands": [
+          "Amazon Prime",
+          "Amazon Fresh",
+          "Amazon Pay",
+          "Daily Essentials"
+        ],
+        "exclusions": [
+          "Myntra"
+        ],
+        "brandExclusions": {
+          "Amazon Prime": [
+            "JioHotstar"
+          ]
+        }
+      },
+      "sample_campaigns": []
+    },
+    "jio": {
+      "budget_config": {
+        "base_annual_budget": 60000000,
+        "ipl_multiplier": 3,
+        "festive_multiplier": 1.2,
+        "roas_base": 4.5,
+        "genders": [
+          "Both"
+        ],
+        "brands": [
+          "JioAirFiber",
+          "JioMart",
+          "Jio5G",
+          "AJIO"
+        ],
+        "brandExclusions": {
+          "JioMart": [
+            "Myntra",
+            "Amazon.in"
+          ]
+        }
+      },
+      "sample_campaigns": []
+    },
+    "hul": {
+      "budget_config": {
+        "base_annual_budget": 1500000000,
+        "ipl_multiplier": 1.8,
+        "festive_multiplier": 1.5,
+        "roas_base": 4.8,
+        "genders": [
+          "F",
+          "Both"
+        ],
+        "brands": [
+          "Lakme",
+          "Dove",
+          "Surf Excel",
+          "Ponds",
+          "Tresemmé",
+          "Knorr",
+          "Horlicks"
+        ]
+      },
+      "sample_campaigns": []
+    },
+    "hdfc": {
+      "budget_config": {
+        "base_annual_budget": 150000000,
+        "ipl_multiplier": 2,
+        "festive_multiplier": 1.5,
+        "roas_base": 5,
+        "genders": [
+          "Both",
+          "M"
+        ],
+        "brands": [
+          "Credit Cards",
+          "Home Loans",
+          "PayZapp",
+          "HDFC Life",
+          "Personal Loans"
+        ]
+      },
+      "sample_campaigns": []
+    }
+  }
+}
