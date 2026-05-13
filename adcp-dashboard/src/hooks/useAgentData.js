@@ -100,7 +100,7 @@ const CAMPAIGN_GEO_TYPES = [
 ];
 const REGIONAL_CLUSTERS = {
   "South": ["Tamil Nadu", "Karnataka", "Kerala", "Andhra Pradesh", "Telangana"],
-  "HSM": ["Uttar Pradesh", "Madhya Pradesh", "Rajasthan", "Bihar", "Jharkhand", "Chhattisgarh", "Uttarakhand", "Haryana"]
+  "HSM": ["Uttar Pradesh", "Madhya Pradesh", "Rajasthan", "Bihar", "Jharkhand", "Chhattisgarh", "Uttarakhand", "Haryana", "Maharashtra", "Gujarat", "Punjab", "West Bengal", "Odisha", "Assam", "Goa", "Himachal Pradesh", "Jammu & Kashmir", "Delhi NCR", "Sikkim", "Meghalaya", "Tripura", "Manipur", "Mizoram", "Nagaland", "Arunachal Pradesh"]
 };
 const STATE_CITIES = {
   "Maharashtra": { metros: ["Mumbai", "Pune"], others: ["Nagpur", "Nashik"] },

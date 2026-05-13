@@ -365,7 +365,7 @@ Campaigns are assigned geography types using a **weighted probability distributi
 | Cluster | States |
 |---|---|
 | **South** | Tamil Nadu, Karnataka, Kerala, Andhra Pradesh, Telangana |
-| **HSM** | Uttar Pradesh, Madhya Pradesh, Rajasthan, Bihar, Jharkhand, Chhattisgarh, Uttarakhand, Haryana |
+| **HSM** | Uttar Pradesh, Madhya Pradesh, Rajasthan, Bihar, Jharkhand, Chhattisgarh, Uttarakhand, Haryana, Maharashtra, Gujarat, Punjab, West Bengal, Odisha, Assam, Goa, Himachal Pradesh, Jammu & Kashmir, Delhi NCR, Sikkim, Meghalaya, Tripura, Manipur, Mizoram, Nagaland, Arunachal Pradesh |
 
 ### Line Item Breakdown Rules
 
