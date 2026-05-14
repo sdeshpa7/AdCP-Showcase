@@ -1,10 +1,10 @@
 # Product Requirements Document (PRD)
 # AdCP — Advertising Context Protocol Multi-Agent Simulation
 
-**Version:** 1.0  
+**Version:** 2.0  
 **Author:** Sourabh  
-**Date:** 2026-05-10  
-**Status:** In Progress  
+**Date:** 2026-05-14  
+**Status:** MVP Complete  
 
 ---
 
@@ -42,7 +42,6 @@ AdCP answers this by simulating a complete buy-side and sell-side marketplace wh
 - Real-time bidding (RTB) auction mechanics with sub-100ms latency
 - Actual ad creative rendering or serving
 - Integration with production DSP/SSP platforms
-- User-facing frontend beyond CLI dashboards (web dashboards are stretch)
 
 ---
 
@@ -106,6 +105,12 @@ AdCP answers this by simulating a complete buy-side and sell-side marketplace wh
 | **Campaign Manager** | `manager.py` | CLI tool to control a single buyer agent remotely |
 | **Demo Launcher** | `demo.py` | Starts all 10 agents, runs campaigns concurrently, shows scoreboard |
 | **CLI Orchestrator** | `cli.py` | Interactive/autonomous mode runner with Rich display |
+| **Advertiser Dashboard** | `adcp-dashboard/src/App.jsx` | React SPA: campaign overview, pacing, publisher mix per agent |
+| **Publisher Dashboard** | `adcp-dashboard/src/PublisherApp.jsx` | React SPA: publisher revenue, fill rate, viewership, inventory analytics |
+| **Mock Data Engine** | `adcp-dashboard/src/hooks/useAgentData.js` | Deterministic campaign generation with Gaussian distributions and seasonal multipliers |
+| **Viewership Data** | `adcp-dashboard/src/hooks/useViewershipData.js` | Publisher DAU, watch time, device breakdown, content performance |
+| **Publisher Data Pivot** | `adcp-dashboard/src/hooks/usePublisherData.js` | Advertiser-to-publisher data transformation for publisher view |
+| **Data Model Docs** | `adcp-dashboard/docs/DATA_MODEL.md` | Comprehensive reference for all formulas, business rules, and mock data constraints |
 
 ---
 
@@ -179,6 +184,19 @@ AdCP answers this by simulating a complete buy-side and sell-side marketplace wh
 | FR-7.5 | Seller dashboard endpoint returns: revenue, content-wise breakdown, top buyers, per-product yield | ✅ Implemented |
 | FR-7.6 | Competition scoreboard ranks agents by buys created and budget utilization | ✅ Implemented |
 
+### FR-8: Web Dashboard UI
+
+| ID | Requirement | Status |
+|----|-------------|--------|
+| FR-8.1 | Advertiser Dashboard — React/Vite SPA showing campaign overview, spend pacing, publisher mix, active/completed campaigns per agent | ✅ Implemented |
+| FR-8.2 | Publisher Dashboard — Separate React/Vite SPA (advertiser view + publisher view toggle) showing revenue, fill rate, viewership, inventory analytics | ✅ Implemented |
+| FR-8.3 | Fill Rate calculation using formula: `impressions / (DAU × avgWatchTime × 0.2 × 30)` with realistic industry-range outputs (25–65%) | ✅ Implemented |
+| FR-8.4 | Mock data engine generating deterministic campaigns via Gaussian distributions, jitter factors, and seasonal multipliers | ✅ Implemented |
+| FR-8.5 | Campaign creation flow connected to buyer agent (Advertiser Dashboard) and seller agent (Publisher Dashboard) strategy deployment pages | ✅ Implemented |
+| FR-8.6 | Geographic targeting with Pan-India, Metro, Tier 2/3, South, and HSM (all non-South states) regional clusters | ✅ Implemented |
+| FR-8.7 | Competitive exclusion rules enforced at agent and brand level (e.g., Flipkart excludes Amazon.in) | ✅ Implemented |
+| FR-8.8 | Content-targeted vs Run of Network (RON) campaign detection | ✅ Implemented |
+
 ---
 
 ## 6. Buyer Agents (Demand Side)
@@ -223,11 +241,11 @@ Discovery ──→ Evaluation ──→ Allocation ──→ Execution ──�
 
 | Publisher | Domain | Category | MAU | Platforms | Ad Slots | CPM Range (INR) |
 |-----------|--------|----------|-----|-----------|----------|-----------------|
-| JioHotstar | jiohotstar.com | Streaming | 503M | Mobile, CTV, Web | 8 | ₹60–₹2,500 |
-| ESPNcricinfo | espncricinfo.com | Sports | 37M | Web | 4 | ₹90–₹220 |
-| Myntra | myntra.com | Fashion | 80M | Mobile | 3 | ₹70–₹140 |
+| JioHotstar | jiohotstar.com | Streaming | 503M | Mobile, CTV, Web | 8 | ₹60–₹1,200 |
+| ESPNcricinfo | espncricinfo.com | Sports | 37M | Web | 4 | ₹140–₹280 |
+| Myntra | myntra.com | Fashion | 80M | Mobile | 3 | ₹120–₹350 |
 | NDTV | ndtv.com | News | 40M | Web | 4 | ₹120–₹250 |
-| Amazon.in | amazon.in | E-Commerce | 150M | Web, Mobile | 8 | ₹50–₹300 |
+| Amazon.in | amazon.in | E-Commerce | 150M | Web, Mobile | 8 | ₹60–₹400 |
 
 ### 7.2 Inventory Model
 
@@ -306,11 +324,13 @@ All monetary values are in **INR (Indian Rupees)**. LLM cost estimation uses ₹
 
 ## 10. Tech Stack
 
+### 10.1 Backend (Agent System)
+
 | Layer | Technology | Version |
 |-------|-----------|---------|
-| Language | Python | ≥ 3.11 |
+| Language | Python | 3.14 |
 | LLM | Gemma-3-27b-it | via Google GenAI SDK (`google-genai ≥ 1.0`) |
-| Protocol | AdCP SDK | `adcp ≥ 4.0` |
+| Protocol | AdCP SDK | `adcp 5.3.0` |
 | HTTP Server | FastAPI + Uvicorn | `fastapi ≥ 0.111`, `uvicorn ≥ 0.29` |
 | HTTP Client | httpx | `≥ 0.27` |
 | Data Validation | Pydantic | `≥ 2.0` |
@@ -318,9 +338,22 @@ All monetary values are in **INR (Indian Rupees)**. LLM cost estimation uses ₹
 | Config | python-dotenv | `≥ 1.0` |
 | Build | Hatchling | — |
 
+### 10.2 Frontend (Dashboard)
+
+| Layer | Technology | Version |
+|-------|-----------|---------|
+| Framework | React | 19.2 |
+| Bundler | Vite | 8.0 |
+| Charts | Recharts | 3.8 |
+| Icons | Lucide React | 1.14 |
+| Styling | Vanilla CSS | — |
+| System Date | Fixed at `2026-05-10` | Deterministic simulation anchor |
+
 ---
 
 ## 11. Entry Points & CLI Commands
+
+### 11.1 Backend Agent Commands
 
 | Command | Script Entry | Purpose |
 |---------|-------------|---------|
@@ -329,6 +362,14 @@ All monetary values are in **INR (Indian Rupees)**. LLM cost estimation uses ₹
 | `adcp-manager` | `manager:cli_entry` | Control a single buyer agent (`--agent flipkart --brief "..."`) |
 | `adcp-demo` | `demo:cli_entry` | Launch full 5×5 multi-agent competition |
 | `python -m adcp_showcase.cli` | `cli:cli_entry` | Interactive/autonomous CLI orchestrator |
+
+### 11.2 Dashboard Commands
+
+| Command | Working Directory | URL | Purpose |
+|---------|------------------|-----|--------|
+| `npm run dev` | `adcp-dashboard/` | `localhost:5173` | Advertiser Dashboard |
+| `npm run publisher` | `adcp-dashboard/` | `localhost:5174` | Publisher Dashboard |
+| `npm run build` | `adcp-dashboard/` | — | Production build verification |
 
 ---
 
@@ -393,24 +434,34 @@ The original proposal (`Capstone-Project.md`) outlined a simpler architecture. H
 | **Agent Discovery** | Not specified | Local registry mirroring AdCP Registry API |
 | **Context Engineering** | Middleware bundles context | 4-strategy noise reduction (phase decoupling, pre-LLM filtering, schema enforcement, state summarization) |
 | **Orchestration** | Centralized orchestrator | Each agent is an independent MCP server; demo launcher is an observer |
-| **Dashboard** | "Simulation Logs/Dashboard" | Dual-sided dashboards with financials, performance, AI intelligence, content breakdowns |
+| **Dashboard** | "Simulation Logs/Dashboard" | Dual React/Vite SPAs — Advertiser Dashboard (`:5173`) + Publisher Dashboard (`:5174`) with campaign analytics, viewership, fill rate, and AI strategy deployment |
 | **Communication** | Unspecified | JSON-RPC 2.0 over Streamable HTTP with typed error handling |
+| **Data Documentation** | Not specified | `docs/DATA_MODEL.md` — comprehensive reference for all formulas, business rules, mock data constraints, and geographic targeting |
 
 ---
 
 ## 14. Known Gaps & Future Work
 
+### 14.1 Resolved (v2.0)
+
+| # | Gap | Resolution |
+|---|-----|------------|
+| 1 | No web-based dashboard UI | ✅ Dual React/Vite dashboards (Advertiser + Publisher) with campaign analytics, viewership, fill rate |
+| 2 | `buyer/server.py` indentation bug | ✅ Fixed during dashboard integration |
+| 3 | Data model documentation | ✅ Comprehensive `docs/DATA_MODEL.md` with all formulas, rules, and constraints |
+
+### 14.2 Remaining
+
 | # | Gap | Priority | Notes |
 |---|-----|----------|-------|
-| 1 | No web-based dashboard UI | Medium | Currently CLI-only; `get_dashboard` endpoints exist but no frontend |
-| 2 | No real-time auction mechanics | Low | Current model is guaranteed direct buys, not RTB |
-| 3 | Delivery simulation is stateless | Low | Each call regenerates random values; no time-series progression |
-| 4 | `buyer/server.py` has an indentation bug | High | Lines 360–405 in `_handle_get_dashboard` have broken indentation |
-| 5 | Duplicate `record_spend` method | Medium | `models.py` lines 220–228 define `record_spend` twice on `BuyerAgentState` |
-| 6 | `cli.py` creates agents with single `mcp_client` (not list) | Medium | Constructor signature mismatch with `BuyerAgent.__init__` |
-| 7 | No persistent storage | Low | All state is in-memory; lost on restart |
-| 8 | No automated tests | High | No test suite exists |
-| 9 | README.md is empty | High | No project documentation for external readers |
+| 1 | No real-time auction (RTB) mechanics | Medium | Current model uses guaranteed direct buys, not per-impression auctions |
+| 2 | Delivery simulation is stateless | Low | Each call regenerates random values; no time-series progression |
+| 3 | Duplicate `record_spend` method | Low | `models.py` defines `record_spend` twice on `BuyerAgentState` |
+| 4 | `cli.py` constructor signature mismatch | Low | Creates agents with single `mcp_client` instead of list |
+| 5 | No persistent storage | Low | All backend agent state is in-memory; lost on restart |
+| 6 | No automated tests | Medium | No test suite exists |
+| 7 | README.md is empty | Medium | No project documentation for external readers |
+| 8 | Dashboard uses mock data, not live agents | Medium | Dashboard generates data client-side; not connected to running agent servers |
 
 ---
 
