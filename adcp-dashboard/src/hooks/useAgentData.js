@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-export const SYSTEM_DATE = '2026-05-10';
+export const SYSTEM_DATE = new Date().toISOString().split('T')[0];
 
 const gaussianRandom = (mean = 0, stdev = 1) => {
   const u = 1 - Math.random();
@@ -269,7 +269,16 @@ const getValidPublisher = (agentId, preferredPub, brandName) => {
 };
 
 const generateHistory = (agentId) => {
-  const years = [2023, 2024, 2025, 2026];
+  const now = new Date(SYSTEM_DATE);
+  const curYear = now.getFullYear();
+  const curMonth = now.getMonth() + 1; // 1-indexed
+  const curDay = now.getDate();
+
+  // Generate 3 full fiscal years of history + current partial year
+  // FY starts in April, so if we're in Jan-Mar we're still in the previous FY
+  const currentFYStart = curMonth >= 4 ? curYear : curYear - 1;
+  const years = [currentFYStart - 3, currentFYStart - 2, currentFYStart - 1, currentFYStart];
+
   const months = ['04', '05', '06', '07', '08', '09', '10', '11', '12', '01', '02', '03'];
   const profile = AGENT_PROFILES[agentId];
   const data = [];
@@ -279,11 +288,12 @@ const generateHistory = (agentId) => {
 
   years.forEach(y => {
     months.forEach((m, mIdx) => {
-      const yearStr = (parseInt(m) <= 3) ? y + 1 : y;
-      if (yearStr > 2026) return;
-      if (yearStr === 2026 && parseInt(m) > 5) return;
+      const monthNum = parseInt(m);
+      const yearStr = (monthNum <= 3) ? y + 1 : y;
+      if (yearStr > curYear) return;
+      if (yearStr === curYear && monthNum > curMonth) return;
       
-      const isCurrentMonth = (yearStr === 2026 && m === '05');
+      const isCurrentMonth = (yearStr === curYear && monthNum === curMonth);
       const datePrefix = `${yearStr}-${m}`;
       
       // Determine monthly multiplier based on season
@@ -303,9 +313,9 @@ const generateHistory = (agentId) => {
       for (let i = 0; i < cappedCount; i++) {
         let status = isCurrentMonth ? 'active' : 'completed';
         
-        // Allow ~5% of current month campaigns to be completed (e.g., short burst campaigns that finished early)
-        // Use i % 20 === 0 to make it deterministic but appearing random
-        if (isCurrentMonth && i % 20 === 0) {
+        // ~30% of current month campaigns are completed (short burst campaigns that finished early)
+        // Campaigns with index divisible by 3 are completed
+        if (isCurrentMonth && i % 3 === 0) {
           status = 'completed';
         }
 
@@ -332,10 +342,10 @@ const generateHistory = (agentId) => {
         let startDayVal = (i % 10) + 1;
         let endDayVal = (i % 10) + 15;
 
-        // If it's a current month completed campaign, it must end before today (May 10)
+        // If it's a current month completed campaign, it must end before today
         if (status === 'completed' && isCurrentMonth) {
-          startDayVal = Math.max(1, startDayVal - 10);
-          endDayVal = Math.min(9, endDayVal - 10);
+          startDayVal = Math.max(1, (i % (curDay - 2)) + 1);
+          endDayVal = Math.min(curDay - 1, startDayVal + 5 + (i % 4));
         }
 
         const startDay = String(startDayVal).padStart(2, '0');

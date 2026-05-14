@@ -32,13 +32,13 @@
 
 ## 1. System Date
 
-The simulation is frozen at **`2026-05-10`**. All "active" campaigns are paced against this date. All campaigns before May 2026 are marked `completed`.
+The simulation uses the **current system date** (`new Date()`) when the dashboard is opened. All "active" campaigns are paced against this date. All campaigns before the current month are marked `completed`.
 
 ```
-SYSTEM_DATE = '2026-05-10'
+SYSTEM_DATE = new Date().toISOString().split('T')[0]  // e.g., '2026-05-14'
 ```
 
-**Indian Financial Year**: The dashboard uses Indian FY (April–March). The current FY is `2025-26` progressing to `2026-27`.
+**Indian Financial Year**: The dashboard uses Indian FY (April–March). FY years are derived dynamically from the current date (e.g., if opened in May 2026, the current FY is `2026-27`).
 
 ---
 
@@ -166,10 +166,10 @@ This means: **1 campaign per ~₹1.5 Crore of monthly budget**, with a minimum o
 
 ### Campaign Status Rules
 
-- **All months before May 2026**: `status = 'completed'`
-- **May 2026 (current month)**: `status = 'active'` by default
-  - Exception: Every 20th campaign (`i % 20 === 0`) is marked `completed` (short burst campaigns that finished before May 10)
-  - Completed current-month campaigns have adjusted dates: end before May 9 (SYSTEM_DATE - 1)
+- **All months before the current month**: `status = 'completed'`
+- **Current month**: `status = 'active'` by default
+  - Exception: Every 3rd campaign (`i % 3 === 0`) is marked `completed` (~30% of current month campaigns are short burst campaigns that finished early)
+  - Completed current-month campaigns have adjusted dates: end before today (SYSTEM_DATE - 1)
 
 ### Campaign ID Format
 

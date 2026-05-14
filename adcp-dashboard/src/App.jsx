@@ -23,15 +23,18 @@ import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Ba
 const COLORS = ['#3b82f6', '#10b981', '#f97316', '#8b5cf6', '#ef4444', '#ec4899'];
 
 function App() {
-  const FY_YEARS = ['2023-24', '2024-25', '2025-26', '2026-27'];
-  const MONTHS = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'January', 'February', 'March'];
-  const QUARTERS = ['Q1 (Apr-Jun)', 'Q2 (Jul-Sep)', 'Q3 (Oct-Dec)', 'Q4 (Jan-Mar)'];
-
-  // Calculate current dynamic defaults based on system clock
   const now = new Date();
   const curY = now.getFullYear();
   const curM = now.getMonth(); // 0 is Jan
   const fyStart = curM >= 3 ? curY : curY - 1;
+  const FY_YEARS = Array.from({length: 4}, (_, i) => {
+    const s = fyStart - 3 + i;
+    return `${s}-${(s + 1).toString().slice(-2)}`;
+  });
+  const MONTHS = ['April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'January', 'February', 'March'];
+  const QUARTERS = ['Q1 (Apr-Jun)', 'Q2 (Jul-Sep)', 'Q3 (Oct-Dec)', 'Q4 (Jan-Mar)'];
+
+  // Derive current FY defaults from the already-declared date variables
   const currentFY = `${fyStart}-${(fyStart + 1).toString().slice(-2)}`;
   const currentMonthIdx = (curM - 3 + 12) % 12;
   const currentQIdx = Math.floor(currentMonthIdx / 3);
