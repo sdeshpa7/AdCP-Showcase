@@ -48,6 +48,7 @@ const hashString = (str) => {
 const SELLER_AGENTS = {
   orchestrator: { name: 'Seller Orchestrator', icon: '🏢', color: '#f59e0b', usesLLM: false },
   catalog:      { name: 'Catalog Agent', icon: '📦', color: '#3b82f6', usesLLM: false },
+  exchange:     { name: 'Exchange Agent', icon: '⚡', color: '#ef4444', usesLLM: false },
   validation:   { name: 'Validation Agent', icon: '✅', color: '#f97316', usesLLM: false },
   delivery:     { name: 'Delivery Agent', icon: '📊', color: '#10b981', usesLLM: false },
 };
