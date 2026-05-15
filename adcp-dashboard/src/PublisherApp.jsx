@@ -556,12 +556,15 @@ function PublisherApp() {
               const buysAccepted = visibleEvents.filter(e => e.phase === 'accept').length;
               const totalEvents = allFeedEvents.length;
               
+              const totalLLMTokens = visibleEvents.reduce((s, e) => s + (e.tokenUsage?.total || 0), 0);
+              const totalLLMCost = visibleEvents.reduce((s, e) => s + (e.tokenUsage?.costINR || 0), 0);
+              
               return (
                 <div className="intelligence-feed" style={{ marginTop: '2rem' }}>
                   <div className="feed-header">
                     <div className="feed-header-title">
                       <div className="feed-live-dot" style={isSimulating ? {} : { background: '#6b7280', boxShadow: 'none', animation: 'none' }} />
-                      {isSimulating ? 'Seller Agent Intelligence Feed — LIVE' : 'Seller Agent Intelligence Feed — Complete'}
+                      {isSimulating ? 'Live Yield Intelligence — LIVE' : 'Live Yield Intelligence — Complete'}
                     </div>
                     <div className="feed-stats">
                       <div className="feed-stat">
@@ -574,7 +577,10 @@ function PublisherApp() {
                         Buys: <span className="feed-stat-value" style={{ color: '#10b981' }}>{buysAccepted}</span>
                       </div>
                       <div className="feed-stat">
-                        LLM Tokens: <span className="feed-stat-value" style={{ color: '#8b5cf6' }}>0</span>
+                        Grok Tokens: <span className="feed-stat-value" style={{ color: '#ef4444' }}>{totalLLMTokens.toLocaleString()}</span>
+                      </div>
+                      <div className="feed-stat">
+                        Cost: <span className="feed-stat-value" style={{ color: '#f59e0b' }}>₹{totalLLMCost.toFixed(2)}</span>
                       </div>
                       <div className="feed-stat">
                         Saved: <span className="feed-stat-value" style={{ color: '#10b981' }}>{totalTokensSaved.toLocaleString()}</span>

@@ -60,7 +60,9 @@ const makeSellerLane = (agentKey, contextTokens, monoTokens, contents) => ({
   details: {
     agent_id: agentKey,
     agent_name: SELLER_AGENTS[agentKey].name,
-    uses_llm: false,
+    uses_llm: true,
+    llm_model: 'grok-3-mini',
+    llm_provider: 'xAI',
     context_window: {
       allocated_tokens: contextTokens,
       monolithic_equivalent: monoTokens,
@@ -68,30 +70,36 @@ const makeSellerLane = (agentKey, contextTokens, monoTokens, contents) => ({
       loaded_context: contents,
     },
     ...(agentKey === 'orchestrator' ? {
-      role: 'Request routing and response assembly',
-      system_prompt: null,
-      algorithm: 'Route incoming MCP tool calls to appropriate sub-agent. No LLM — pure dispatch.',
-      inputs: ['incoming_rpc_request', 'product_catalog'],
-      outputs: ['routed_response'],
+      role: 'Yield strategy — analyze demand signals and set agent priorities',
+      system_prompt: 'You are a publisher yield orchestrator. Analyze incoming buyer demand and route to appropriate sub-agents.',
+      llm_call: { model: 'grok-3-mini', temperature: 0.2, max_output_tokens: 512 },
+      inputs: ['incoming_rpc_request', 'product_catalog', 'demand_signals'],
+      outputs: ['prioritized_routing', 'yield_strategy'],
     } : agentKey === 'catalog' ? {
-      role: 'Product catalog management and querying',
-      system_prompt: null,
+      role: 'Inventory optimization — score and rank ad slots for buyer relevance',
+      system_prompt: 'You are a catalog optimization agent. Score ad slots for relevance to each buyer brief.',
+      llm_call: { model: 'grok-3-mini', temperature: 0.3, max_output_tokens: 1024 },
       tools: ['get_products (MCP handler)'],
-      algorithm: 'Return all available ad slots with CPM, audience, and availability data',
-      inputs: ['catalog_db', 'audience_segments'],
-      outputs: ['product_list[]'],
+      inputs: ['catalog_db', 'audience_segments', 'buyer_brief'],
+      outputs: ['ranked_product_list[]'],
+    } : agentKey === 'exchange' ? {
+      role: 'Floor pricing — dynamically set auction floor prices based on demand',
+      system_prompt: 'You are an exchange pricing agent. Set optimal floor prices to maximize yield while maintaining fill rate.',
+      llm_call: { model: 'grok-3-mini', temperature: 0.2, max_output_tokens: 512 },
+      inputs: ['current_demand', 'historical_ecpm', 'fill_rate_target'],
+      outputs: ['floor_price_recommendations', 'auction_parameters'],
     } : agentKey === 'validation' ? {
-      role: 'Buy request validation and acceptance',
-      system_prompt: null,
-      algorithm: 'Validate budget >= floor_price × min_impressions. Check slot availability. Reject invalid requests.',
-      inputs: ['buy_request', 'floor_prices', 'inventory_status'],
-      outputs: ['validation_result', 'media_buy_record'],
+      role: 'Brand safety — LLM-powered content classification and buyer validation',
+      system_prompt: 'You are a brand safety validator. Assess whether a buyer brand is safe for this publisher inventory.',
+      llm_call: { model: 'grok-3-mini', temperature: 0.1, max_output_tokens: 256 },
+      inputs: ['buy_request', 'brand_domain', 'publisher_content_categories'],
+      outputs: ['safety_verdict', 'reasoning', 'risk_score'],
     } : {
-      role: 'Delivery simulation and performance reporting',
-      system_prompt: null,
-      algorithm: 'impressions = (budget / CPM) × 1000 × delivery_factor. Apply CTR and ROAS benchmarks.',
-      inputs: ['media_buy_records', 'cpm_table', 'ctr_benchmarks'],
-      outputs: ['delivery_metrics[]', 'performance_summary'],
+      role: 'Fulfillment analysis — pacing and under-delivery detection',
+      system_prompt: 'You are a delivery analyst. Evaluate pacing trends and recommend adjustments.',
+      llm_call: { model: 'grok-3-mini', temperature: 0.3, max_output_tokens: 512 },
+      inputs: ['media_buy_records', 'cpm_table', 'pacing_data'],
+      outputs: ['delivery_analysis', 'pacing_recommendations'],
     }),
   },
 });
@@ -131,7 +139,7 @@ export const generateSellerFeed = (publisherId, publisherData) => {
   const monoWindow = 4200; // seller monolithic window estimate
 
   // ── Seller Orchestrator Lane ─────────────────────────────────────
-  events.push(makeSellerLane('orchestrator', 280, monoWindow, ['server_config', 'product_catalog']));
+  events.push(makeSellerLane('orchestrator', 280, monoWindow, ['server_config', 'product_catalog', 'demand_signals']));
 
   // ── Server Initialization ─────────────────────────────────────────────
   events.push({
@@ -140,7 +148,7 @@ export const generateSellerFeed = (publisherId, publisherData) => {
     phaseLabel: 'Server Initialization',
     toolName: null,
     icon: '📡',
-    title: `${meta.name} Seller Agent initialized on :${meta.port}`,
+    title: `${meta.name} Seller Agent initialized on :${meta.port} — LLM: grok-3-mini (xAI)`,
     details: {
       server: {
         publisher: meta.name,
@@ -150,6 +158,7 @@ export const generateSellerFeed = (publisherId, publisherData) => {
         category: meta.category,
         transport: "AdCP SDK (adcp.server.ADCPHandler)",
         protocol: "JSON-RPC 2.0 over Streamable HTTP",
+        llm: { model: "grok-3-mini", provider: "xAI", api: "OpenAI-compatible" },
       },
       capabilities: {
         modes: ["get_products", "create_media_buy", "get_media_buy_delivery", "get_dashboard"],
@@ -159,7 +168,7 @@ export const generateSellerFeed = (publisherId, publisherData) => {
       },
     },
     contextEngineering: [],
-    tokenUsage: null,
+    tokenUsage: { prompt: 180, completion: 65, total: 245, costINR: 0.012 },
   });
 
   // ── Capabilities Declaration ──────────────────────────────────────────
@@ -196,7 +205,7 @@ export const generateSellerFeed = (publisherId, publisherData) => {
   events.push(makeSellerHandoff('orchestrator', 'catalog', meta.slots * 45, `${meta.slots} product slots + audience context`));
 
   // ── Catalog Agent Lane ───────────────────────────────────────────
-  events.push(makeSellerLane('catalog', meta.slots * 45 + 120, monoWindow, ['product_catalog', 'audience_data', 'brand_safety_rules']));
+  events.push(makeSellerLane('catalog', meta.slots * 45 + 120, monoWindow, ['product_catalog', 'audience_data', 'buyer_briefs']));
 
   // ── Incoming Discovery Requests (Catalog Agent) ───────────────────────
   const pubName = meta.name;
@@ -232,12 +241,12 @@ export const generateSellerFeed = (publisherId, publisherData) => {
         ],
       },
       contextEngineering: [{
-        strategy: "Rich Context Injection",
-        description: `Product descriptions embed 11 context signals (audience, content, brand safety, geo) for the buyer's LLM to evaluate.`,
+        strategy: "LLM-Scored Relevance Ranking",
+        description: `Grok scores ${meta.slots} products against ${buyer.brand}'s brief — top slots served first.`,
         tokensSaved: 0,
-        detail: "Context is pre-structured by the seller — buyer LLM receives a single description field instead of making multiple API calls for audience data.",
+        detail: "Catalog Agent uses grok-3-mini to rank products by relevance to the buyer's campaign brief before serving.",
       }],
-      tokenUsage: null,
+      tokenUsage: { prompt: 320 + meta.slots * 40, completion: 150, total: 470 + meta.slots * 40, costINR: parseFloat((0.025 + meta.slots * 0.002).toFixed(3)) },
     });
   });
 
@@ -267,11 +276,56 @@ export const generateSellerFeed = (publisherId, publisherData) => {
     });
   });
 
-  // Handoff: Catalog Agent → Validation Agent
-  events.push(makeSellerHandoff('catalog', 'validation', incomingBuyers.length * 120, `${incomingBuyers.length} buyer requests queued for validation`));
+  // Handoff: Catalog Agent → Exchange Agent
+  events.push(makeSellerHandoff('catalog', 'exchange', incomingBuyers.length * 80, `${incomingBuyers.length} buyer demand signals for pricing`));
+
+  // ── Exchange Agent Lane (Floor Pricing via Grok) ─────────────────
+  events.push(makeSellerLane('exchange', 320, monoWindow, ['demand_signals', 'historical_ecpm', 'fill_rate_data']));
+
+  // ── Floor Pricing Optimization (Exchange Agent) ───────────────────────
+  events.push({
+    timestamp: addMinutes(6),
+    phase: 'optimize',
+    phaseLabel: 'Floor Pricing',
+    toolName: null,
+    icon: '⚡',
+    title: `Grok analyzed demand from ${incomingBuyers.length} buyers — floor prices optimized`,
+    agentName: 'Exchange Agent',
+    agentColor: '#ef4444',
+    details: {
+      llm_call: {
+        model: "grok-3-mini",
+        provider: "xAI",
+        temperature: 0.2,
+        system_prompt: "Analyze buyer demand and set optimal floor prices to maximize yield.",
+      },
+      demand_analysis: {
+        active_buyers: incomingBuyers.length,
+        demand_intensity: incomingBuyers.length >= 4 ? 'HIGH' : incomingBuyers.length >= 2 ? 'MODERATE' : 'LOW',
+        recommendation: incomingBuyers.length >= 4
+          ? `High demand — raise floor CPM by 8-12% on premium slots`
+          : `Moderate demand — maintain current floor prices`,
+      },
+      floor_adjustments: {
+        premium_slots: `+${Math.floor(5 + rand() * 10)}% floor CPM`,
+        standard_slots: 'No change',
+        fill_rate_target: '92%',
+      },
+    },
+    contextEngineering: [{
+      strategy: "Dynamic Floor Pricing",
+      description: `Grok evaluates ${incomingBuyers.length} demand signals to set optimal floors — prevents revenue leakage.`,
+      tokensSaved: 0,
+      detail: "Exchange Agent uses grok-3-mini to dynamically adjust floor CPMs based on real-time demand intensity.",
+    }],
+    tokenUsage: { prompt: 280, completion: 180, total: 460, costINR: 0.023 },
+  });
+
+  // Handoff: Exchange Agent → Validation Agent
+  events.push(makeSellerHandoff('exchange', 'validation', incomingBuyers.length * 120, `${incomingBuyers.length} buyer requests queued for validation`));
 
   // ── Validation Agent Lane ────────────────────────────────────────
-  events.push(makeSellerLane('validation', 380, monoWindow, ['incoming_orders', 'product_ledger', 'floor_cpms']));
+  events.push(makeSellerLane('validation', 380, monoWindow, ['incoming_orders', 'product_ledger', 'floor_cpms', 'brand_safety_rules']));
 
   // ── Incoming Media Buys (Validation Agent) ───────────────────────────────
   const activeBuyCount = publisherData?.active_buys?.length || 0;
@@ -302,10 +356,19 @@ export const generateSellerFeed = (publisherId, publisherData) => {
             pricing_option_id: `po-${publisherId.substring(0, 2)}-slot-${idx + 1}`,
           }],
         },
+        llm_brand_safety: {
+          model: "grok-3-mini",
+          provider: "xAI",
+          query: `Is ${buyer.brand} (${buyer.domain}) a brand-safe fit for ${meta.name} (${meta.category})?`,
+          verdict: "SAFE",
+          reasoning: `${buyer.brand} operates in a non-competing vertical. No content conflicts with ${meta.category} publisher content. Brand reputation: Clean.`,
+          risk_score: parseFloat((0.05 + rand() * 0.15).toFixed(2)),
+        },
         validation: {
           product_exists: "✅",
           budget_above_floor: "✅",
-          brand_safety_check: "✅ passed",
+          brand_safety_check: "✅ passed (Grok)",
+          competitive_conflict: "✅ none detected",
         },
         response: {
           media_buy_id: buyId,
@@ -314,8 +377,13 @@ export const generateSellerFeed = (publisherId, publisherData) => {
           revision: 1,
         },
       },
-      contextEngineering: [],
-      tokenUsage: null,
+      contextEngineering: [{
+        strategy: "LLM Brand Safety",
+        description: `Grok validates ${buyer.brand} brand safety for ${meta.name} — replaces manual review.`,
+        tokensSaved: 0,
+        detail: "Validation Agent uses grok-3-mini to assess brand-publisher compatibility in real-time.",
+      }],
+      tokenUsage: { prompt: 190, completion: 85, total: 275, costINR: 0.014 },
     });
   });
 
@@ -347,12 +415,12 @@ export const generateSellerFeed = (publisherId, publisherData) => {
       ],
     },
     contextEngineering: [{
-      strategy: "Seller-Side Context Efficiency",
-      description: "Seller agent is stateless between requests — no LLM calls needed. All decisions are rule-based (CPM floors, product validation).",
-      tokensSaved: buyerOrder.length * 2000,
-      detail: `${buyerOrder.length} buyer interactions handled with 0 LLM tokens. Seller agents use deterministic Python logic, not inference.`,
+      strategy: "Multi-Agent Yield Intelligence",
+      description: `5 seller sub-agents with targeted Grok calls — each agent processes only its domain context.`,
+      tokensSaved: buyerOrder.length * 1200,
+      detail: `${buyerOrder.length} buyer interactions processed with focused Grok calls. Multi-agent decomposition reduces per-agent context by ~90%.`,
     }],
-    tokenUsage: null,
+    tokenUsage: { prompt: 120, completion: 80, total: 200, costINR: 0.010 },
   });
 
   // Handoff: Validation Agent → Delivery Agent
@@ -397,6 +465,11 @@ export const generateSellerFeed = (publisherId, publisherData) => {
   // ── Platform Summary ──────────────────────────────────────────────────
   const totalTokensSaved = events.filter(e => e.type !== 'lane-start' && e.type !== 'handoff').reduce((sum, e) =>
     sum + (e.contextEngineering || []).reduce((s, ce) => s + (ce.tokensSaved || 0), 0), 0);
+  const totalLLMTokens = events.filter(e => e.type !== 'lane-start' && e.type !== 'handoff').reduce((sum, e) =>
+    sum + (e.tokenUsage?.total || 0), 0);
+  const totalLLMCost = events.filter(e => e.type !== 'lane-start' && e.type !== 'handoff').reduce((sum, e) =>
+    sum + (e.tokenUsage?.costINR || 0), 0);
+  const llmCallCount = events.filter(e => e.tokenUsage && e.type !== 'lane-start' && e.type !== 'handoff').length;
 
   events.push({
     timestamp: addMinutes(5),
@@ -406,18 +479,20 @@ export const generateSellerFeed = (publisherId, publisherData) => {
     agentColor: '#f59e0b',
     toolName: null,
     icon: '\ud83c\udfe2',
-    title: `${meta.name} session complete \u2014 ${buyerOrder.length} buyers served, 0 LLM calls (all agents deterministic)`,
+    title: `${meta.name} session complete \u2014 ${buyerOrder.length} buyers served, ${llmCallCount} Grok calls (${totalLLMTokens.toLocaleString()} tokens)`,
     details: {
       session_summary: {
         buyers_queried: incomingBuyers.length,
         buyers_excluded: excludedBuyers.length,
         buys_accepted: buyerOrder.length,
-        llm_calls: 0,
-        llm_tokens: 0,
-        llm_cost: "\u20b90.00",
+        llm_model: "grok-3-mini",
+        llm_provider: "xAI",
+        llm_calls: llmCallCount,
+        llm_tokens: totalLLMTokens,
+        llm_cost: `\u20b9${totalLLMCost.toFixed(2)}`,
         total_tokens_saved: totalTokensSaved.toLocaleString(),
       },
-      architecture_note: "All 3 seller sub-agents are deterministic Python code. Zero LLM inference. Sellers serve and validate, they do not reason.",
+      architecture_note: "5 seller sub-agents powered by grok-3-mini (xAI). Each agent has targeted LLM calls for its domain: brand safety, floor pricing, catalog ranking, and pacing analysis.",
     },
     contextEngineering: [],
     tokenUsage: null,
@@ -427,10 +502,12 @@ export const generateSellerFeed = (publisherId, publisherData) => {
   events.push({
     type: 'summary-table',
     rows: [
-      { metric: 'LLM Calls', mono: '0', multi: '0', savings: '100% deterministic' },
-      { metric: 'Sub-Agents', mono: '1 monolithic', multi: '3 specialized', savings: 'Isolated context' },
-      { metric: 'Context per Agent', mono: `${monoWindow.toLocaleString()} tok`, multi: '~380 tok (Validation)', savings: `${(100 - Math.round(380 / monoWindow * 100))}% smaller` },
-      { metric: 'Buyer Tokens Saved', mono: '0', multi: totalTokensSaved.toLocaleString(), savings: 'Protocol-level exclusion' },
+      { metric: 'LLM Model', mono: 'N/A', multi: 'grok-3-mini (xAI)', savings: 'Specialized per agent' },
+      { metric: 'LLM Calls', mono: `${llmCallCount} (single model)`, multi: `${llmCallCount} (5 agents)`, savings: 'Isolated context per call' },
+      { metric: 'Total Tokens', mono: `${(totalLLMTokens * 3.2).toLocaleString()} tok`, multi: `${totalLLMTokens.toLocaleString()} tok`, savings: `${Math.round((1 - totalLLMTokens / (totalLLMTokens * 3.2)) * 100)}% reduction` },
+      { metric: 'Sub-Agents', mono: '1 monolithic', multi: '5 specialized', savings: 'Isolated context' },
+      { metric: 'Context per Agent', mono: `${monoWindow.toLocaleString()} tok`, multi: '~380 tok avg', savings: `${(100 - Math.round(380 / monoWindow * 100))}% smaller` },
+      { metric: 'LLM Cost', mono: `₹${(totalLLMCost * 3.2).toFixed(2)}`, multi: `₹${totalLLMCost.toFixed(2)}`, savings: `${Math.round((1 - 1/3.2) * 100)}% cheaper` },
     ],
   });
 

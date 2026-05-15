@@ -176,11 +176,14 @@ async def main() -> None:
 
     # Check prerequisites
     gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    xai_key = os.getenv("XAI_API_KEY")
     adcp_token = os.getenv("ADCP_AUTH_TOKEN")
 
     if not gemini_key:
         console.print("[bold red]Error:[/bold red] GEMINI_API_KEY not set in .env")
         sys.exit(1)
+    if not xai_key:
+        console.print("[bold yellow]Warning:[/bold yellow] XAI_API_KEY not set — seller agents will run without Grok LLM")
     if not adcp_token:
         console.print("[bold red]Error:[/bold red] ADCP_AUTH_TOKEN not set in .env")
         sys.exit(1)

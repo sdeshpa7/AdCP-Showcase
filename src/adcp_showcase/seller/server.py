@@ -16,9 +16,14 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import logging
+import os
 import sys
 from typing import Any
+
+from dotenv import load_dotenv
+from openai import OpenAI
 
 from adcp.server import ADCPHandler, serve
 from adcp.server.responses import (
@@ -57,9 +62,16 @@ class SellerAgentHandler(ADCPHandler):
     Each publisher runs its own instance on a dedicated port.
     """
 
-    def __init__(self, publisher: PublisherConfig):
+    def __init__(
+        self,
+        publisher: PublisherConfig,
+        llm_client: OpenAI | None = None,
+        llm_model: str = "grok-3-mini",
+    ):
         super().__init__()
         self.publisher = publisher
+        self.llm = llm_client
+        self.llm_model = llm_model
         self.store = MediaBuyStore(publisher.publisher_id)
 
         # Pre-build the product catalog (it's static per publisher)
@@ -252,12 +264,72 @@ class SellerAgentHandler(ADCPHandler):
             }
         ], sandbox=True)
 
+    def _brand_safety_check(self, brand_domain: str) -> dict[str, Any]:
+        """
+        Use Grok (xAI) to assess brand safety for this publisher.
+
+        Returns a dict with 'safe' (bool) and 'reasoning' (str).
+        Falls back to safe=True if no LLM client is configured.
+        """
+        if not self.llm:
+            return {"safe": True, "reasoning": "No LLM configured — auto-approved.", "model": "none"}
+
+        try:
+            prompt = (
+                f"You are a brand safety validator for {self.publisher.publisher_name} "
+                f"({self.publisher.category} publisher, domain: {self.publisher.domain}).\n\n"
+                f"A buyer agent for brand '{brand_domain}' wants to place ads on this publisher.\n\n"
+                f"Assess whether this brand is a safe fit for this publisher's content. "
+                f"Consider competitive conflicts, content appropriateness, and brand reputation.\n\n"
+                f"Respond ONLY with valid JSON:\n"
+                f'{{"safe": true, "reasoning": "1-2 sentence explanation", "risk_score": 0.05}}'
+            )
+
+            response = self.llm.chat.completions.create(
+                model=self.llm_model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1,
+                max_tokens=256,
+            )
+
+            text = response.choices[0].message.content.strip()
+            # Parse JSON from response
+            if "```json" in text:
+                text = text.split("```json")[1].split("```")[0].strip()
+            elif "```" in text:
+                text = text.split("```")[1].split("```")[0].strip()
+
+            result = json.loads(text)
+            result["model"] = self.llm_model
+            result["tokens"] = {
+                "prompt": response.usage.prompt_tokens if response.usage else 0,
+                "completion": response.usage.completion_tokens if response.usage else 0,
+                "total": response.usage.total_tokens if response.usage else 0,
+            }
+
+            logger.info(
+                "[%s] Brand safety check for %s: safe=%s (risk=%.2f)",
+                self.publisher.publisher_id,
+                brand_domain,
+                result.get("safe", True),
+                result.get("risk_score", 0),
+            )
+            return result
+
+        except Exception as exc:
+            logger.warning(
+                "[%s] Brand safety LLM check failed (%s), defaulting to safe",
+                self.publisher.publisher_id, exc,
+            )
+            return {"safe": True, "reasoning": f"LLM check failed ({exc}), auto-approved.", "model": self.llm_model}
+
     async def create_media_buy(self, params, context=None):
         """
         Accept a media buy order from a buyer agent.
 
-        Validates the product exists and budget meets the floor price,
-        then creates a contract in the store.
+        Uses Grok (xAI) for brand safety validation, then validates the
+        product exists and budget meets the floor price, and creates a
+        contract in the store.
         """
         if isinstance(params, dict):
             packages = params.get("packages", [])
@@ -302,6 +374,15 @@ class SellerAgentHandler(ADCPHandler):
                 logger.warning(
                     "[%s] Unknown product_id: %s",
                     self.publisher.publisher_id, product_id,
+                )
+                continue
+
+            # Brand safety check via Grok
+            safety = self._brand_safety_check(brand_domain)
+            if not safety.get("safe", True):
+                logger.warning(
+                    "[%s] Brand safety REJECTED for %s: %s",
+                    self.publisher.publisher_id, brand_domain, safety.get("reasoning"),
                 )
                 continue
 
@@ -457,6 +538,7 @@ def main() -> None:
         help="Publisher ID (jiohotstar, cricinfo, myntra, ndtv, amazon_in)",
     )
     parser.add_argument("--port", type=int, default=None)
+    parser.add_argument("--model", type=str, default=None, help="LLM model (default: grok-3-mini)")
     parser.add_argument("--verbose", "-v", action="store_true")
 
     args = parser.parse_args()
@@ -469,19 +551,41 @@ def main() -> None:
             format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
         )
 
+    load_dotenv()
+
     publisher = get_publisher(args.publisher)
     port = args.port or PORT_MAP.get(args.publisher, 9001)
 
-    handler = SellerAgentHandler(publisher)
+    # Initialize Grok (xAI) LLM client
+    xai_api_key = os.getenv("XAI_API_KEY")
+    llm_model = args.model or os.getenv("SELLER_LLM_MODEL", "grok-3-mini")
+    llm_client = None
+
+    if xai_api_key:
+        llm_client = OpenAI(
+            api_key=xai_api_key,
+            base_url="https://api.x.ai/v1",
+        )
+        logger.info("Grok LLM initialized: model=%s", llm_model)
+    else:
+        logger.warning("XAI_API_KEY not set — seller will run without LLM brand safety checks")
+
+    handler = SellerAgentHandler(
+        publisher=publisher,
+        llm_client=llm_client,
+        llm_model=llm_model,
+    )
 
     total_slots = sum(len(p.slots) for p in publisher.properties)
     cpms = [s.floor_cpm for p in publisher.properties for s in p.slots]
+    llm_status = f"grok-3-mini (xAI)" if llm_client else "No LLM"
 
     print(f"╔══════════════════════════════════════════════════════════╗")
     print(f"║  📰 {publisher.publisher_name:<20s} Seller Agent             ║")
     print(f"║  📡 Serving on http://localhost:{port}/mcp               ║")
     print(f"║  📦 {total_slots} ad slots | CPM ₹{min(cpms):,.0f}–₹{max(cpms):,.0f}             ║")
     print(f"║  👥 {publisher.audience.total_mau:>12,} MAU                       ║")
+    print(f"║  🧠 LLM: {llm_status:<20s}                          ║")
     print(f"╚══════════════════════════════════════════════════════════╝")
 
     serve(
