@@ -56,6 +56,43 @@ const makeSellerLane = (agentKey, contextTokens, monoTokens, contents) => ({
   type: 'lane-start',
   agent: SELLER_AGENTS[agentKey],
   contextWindow: { inputTokens: contextTokens, monoTokens, windowPct: Math.round((contextTokens / monoTokens) * 100), contents },
+  details: {
+    agent_id: agentKey,
+    agent_name: SELLER_AGENTS[agentKey].name,
+    uses_llm: false,
+    context_window: {
+      allocated_tokens: contextTokens,
+      monolithic_equivalent: monoTokens,
+      efficiency: `${Math.round((contextTokens / monoTokens) * 100)}% of monolithic`,
+      loaded_context: contents,
+    },
+    ...(agentKey === 'orchestrator' ? {
+      role: 'Request routing and response assembly',
+      system_prompt: null,
+      algorithm: 'Route incoming MCP tool calls to appropriate sub-agent. No LLM — pure dispatch.',
+      inputs: ['incoming_rpc_request', 'product_catalog'],
+      outputs: ['routed_response'],
+    } : agentKey === 'catalog' ? {
+      role: 'Product catalog management and querying',
+      system_prompt: null,
+      tools: ['get_products (MCP handler)'],
+      algorithm: 'Return all available ad slots with CPM, audience, and availability data',
+      inputs: ['catalog_db', 'audience_segments'],
+      outputs: ['product_list[]'],
+    } : agentKey === 'validation' ? {
+      role: 'Buy request validation and acceptance',
+      system_prompt: null,
+      algorithm: 'Validate budget >= floor_price × min_impressions. Check slot availability. Reject invalid requests.',
+      inputs: ['buy_request', 'floor_prices', 'inventory_status'],
+      outputs: ['validation_result', 'media_buy_record'],
+    } : {
+      role: 'Delivery simulation and performance reporting',
+      system_prompt: null,
+      algorithm: 'impressions = (budget / CPM) × 1000 × delivery_factor. Apply CTR and ROAS benchmarks.',
+      inputs: ['media_buy_records', 'cpm_table', 'ctr_benchmarks'],
+      outputs: ['delivery_metrics[]', 'performance_summary'],
+    }),
+  },
 });
 const makeSellerHandoff = (fromKey, toKey, payloadTokens, desc) => ({
   type: 'handoff',
@@ -64,6 +101,16 @@ const makeSellerHandoff = (fromKey, toKey, payloadTokens, desc) => ({
   toColor: SELLER_AGENTS[toKey].color,
   payloadTokens,
   payloadDescription: desc,
+  details: {
+    transfer: {
+      from_agent: SELLER_AGENTS[fromKey].name,
+      to_agent: SELLER_AGENTS[toKey].name,
+      payload_size: `${payloadTokens} tokens`,
+      payload_description: desc,
+      serialization: 'Structured JSON (deterministic pipeline)',
+      context_strategy: 'Only relevant records passed — no accumulated state',
+    },
+  },
 });
 
 export const generateSellerFeed = (publisherId, publisherData) => {

@@ -89,6 +89,7 @@ function App() {
   }, [activeAgentId]);
 
   const [expandedHistoryId, setExpandedHistoryId] = useState(null);
+  const [expandedHistoryEvent, setExpandedHistoryEvent] = useState(null);
   const [forecastMode, setForecastMode] = useState(false);
 
   const handleResetToCurrent = () => {
@@ -641,11 +642,14 @@ function App() {
                       // Lane-start event
                       if (evt.type === 'lane-start') {
                         const cw = evt.contextWindow;
+                        const isExp = expandedFeedEvent === idx;
                         return (
-                          <div key={idx} className="feed-lane-header" style={{ '--lane-color': evt.agent.color, animation: 'fadeIn 0.4s ease-out' }}>
+                          <div key={idx} className="feed-lane-header clickable" style={{ '--lane-color': evt.agent.color, animation: 'fadeIn 0.4s ease-out' }}
+                            onClick={() => setExpandedFeedEvent(isExp ? null : idx)}>
                             <div className="lane-title">
                               <span>{evt.agent.icon}</span> {evt.agent.name}
                               <span className="lane-badge" data-llm={String(evt.agent.usesLLM)}>{evt.agent.usesLLM ? 'LLM' : 'Deterministic'}</span>
+                              <span style={{ marginLeft: 'auto', fontSize: '0.55rem', color: 'var(--text-muted)', opacity: 0.7 }}>{isExp ? '▼' : '▶'} JSON</span>
                             </div>
                             <div className="lane-meta">
                               <div className="feed-context-gauge">
@@ -653,17 +657,26 @@ function App() {
                                 <div className="gauge-bar"><div className="gauge-fill" style={{ width: `${cw.windowPct}%`, background: evt.agent.color }} /></div>
                               </div>
                             </div>
+                            {isExp && evt.details && (
+                              <div className="feed-json-block">{JSON.stringify(evt.details, null, 2)}</div>
+                            )}
                           </div>
                         );
                       }
                       // Handoff event
                       if (evt.type === 'handoff') {
+                        const isExp = expandedFeedEvent === idx;
                         return (
-                          <div key={idx} className="feed-handoff" style={{ animation: 'fadeIn 0.4s ease-out' }}>
+                          <div key={idx} className="feed-handoff clickable" style={{ animation: 'fadeIn 0.4s ease-out' }}
+                            onClick={() => setExpandedFeedEvent(isExp ? null : idx)}>
                             <span className="handoff-arrow">→</span>
                             <span>Handoff: {evt.from} → <span style={{ color: evt.toColor, fontWeight: 700 }}>{evt.to}</span></span>
                             <span className="handoff-payload">{evt.payloadTokens.toLocaleString()} tok</span>
                             <span style={{ opacity: 0.6 }}>{evt.payloadDescription}</span>
+                            <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)', opacity: 0.7, marginLeft: 'auto' }}>{isExp ? '▼' : '▶'}</span>
+                            {isExp && evt.details && (
+                              <div className="feed-json-block" style={{ width: '100%' }}>{JSON.stringify(evt.details, null, 2)}</div>
+                            )}
                           </div>
                         );
                       }
@@ -915,21 +928,31 @@ function App() {
                                 </div>
                                 <div className="feed-timeline" style={{ maxHeight: '400px' }}>
                                   {historyFeed.map((evt, idx) => {
+                                    const isExp = expandedHistoryEvent === idx;
                                     if (evt.type === 'lane-start') {
                                       const cw = evt.contextWindow;
-                                      return (<div key={idx} className="feed-lane-header" style={{ '--lane-color': evt.agent.color }}>
-                                        <div className="lane-title"><span>{evt.agent.icon}</span> {evt.agent.name} <span className="lane-badge" data-llm={String(evt.agent.usesLLM)}>{evt.agent.usesLLM ? 'LLM' : 'Deterministic'}</span></div>
+                                      return (<div key={idx} className="feed-lane-header clickable" style={{ '--lane-color': evt.agent.color }}
+                                        onClick={() => setExpandedHistoryEvent(isExp ? null : idx)}>
+                                        <div className="lane-title"><span>{evt.agent.icon}</span> {evt.agent.name} <span className="lane-badge" data-llm={String(evt.agent.usesLLM)}>{evt.agent.usesLLM ? 'LLM' : 'Deterministic'}</span>
+                                          <span style={{ marginLeft: 'auto', fontSize: '0.55rem', color: 'var(--text-muted)', opacity: 0.7 }}>{isExp ? '▼' : '▶'} JSON</span>
+                                        </div>
                                         <div className="lane-meta"><div className="feed-context-gauge"><span className="gauge-label">{cw.inputTokens.toLocaleString()} tok ({cw.windowPct}%)</span><div className="gauge-bar"><div className="gauge-fill" style={{ width: `${cw.windowPct}%`, background: evt.agent.color }} /></div></div></div>
+                                        {isExp && evt.details && <div className="feed-json-block">{JSON.stringify(evt.details, null, 2)}</div>}
                                       </div>);
                                     }
                                     if (evt.type === 'handoff') {
-                                      return (<div key={idx} className="feed-handoff"><span className="handoff-arrow">→</span><span>Handoff: {evt.from} → <span style={{ color: evt.toColor, fontWeight: 700 }}>{evt.to}</span></span><span className="handoff-payload">{evt.payloadTokens.toLocaleString()} tok</span></div>);
+                                      return (<div key={idx} className="feed-handoff clickable" onClick={() => setExpandedHistoryEvent(isExp ? null : idx)}>
+                                        <span className="handoff-arrow">→</span><span>Handoff: {evt.from} → <span style={{ color: evt.toColor, fontWeight: 700 }}>{evt.to}</span></span><span className="handoff-payload">{evt.payloadTokens.toLocaleString()} tok</span>
+                                        <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)', opacity: 0.7, marginLeft: 'auto' }}>{isExp ? '▼' : '▶'}</span>
+                                        {isExp && evt.details && <div className="feed-json-block" style={{ width: '100%' }}>{JSON.stringify(evt.details, null, 2)}</div>}
+                                      </div>);
                                     }
                                     if (evt.type === 'summary-table') {
                                       return (<div key={idx} className="feed-summary-table"><h4>Multi-Agent Efficiency</h4><table><thead><tr><th>Metric</th><th>Monolithic</th><th>Multi-Agent</th><th>Savings</th></tr></thead><tbody>{evt.rows.map((r, ri) => (<tr key={ri}><td>{r.metric}</td><td>{r.mono}</td><td>{r.multi}</td><td className="savings">{r.savings}</td></tr>))}</tbody></table></div>);
                                     }
                                     return (
-                                    <div key={idx} className="feed-event" data-phase={evt.phase} style={{ borderLeft: evt.agentColor ? `2px solid ${evt.agentColor}` : undefined }}>
+                                    <div key={idx} className={`feed-event ${isExp ? 'expanded' : ''}`} data-phase={evt.phase} style={{ borderLeft: evt.agentColor ? `2px solid ${evt.agentColor}` : undefined, cursor: 'pointer' }}
+                                      onClick={() => setExpandedHistoryEvent(isExp ? null : idx)}>
                                       <div className="feed-event-top">
                                         <div style={{ display: 'flex', alignItems: 'flex-start', flex: 1 }}>
                                           <span className="feed-event-icon">{evt.icon}</span>
@@ -953,6 +976,11 @@ function App() {
                                           <span className="feed-phase-badge" data-phase={evt.phase}>{evt.phaseLabel}</span>
                                         </div>
                                       </div>
+                                      {isExp && evt.details && (
+                                        <div className="feed-expand">
+                                          {JSON.stringify(evt.details, null, 2)}
+                                        </div>
+                                      )}
                                     </div>
                                     );
                                   })}

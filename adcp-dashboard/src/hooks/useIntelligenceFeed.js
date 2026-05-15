@@ -156,6 +156,53 @@ export const makeLane = (agentKey, contextTokens, monoTokens, contents) => ({
     windowPct: Math.round((contextTokens / monoTokens) * 100),
     contents,
   },
+  details: {
+    agent_id: agentKey,
+    agent_name: BUYER_AGENTS[agentKey].name,
+    uses_llm: BUYER_AGENTS[agentKey].usesLLM,
+    context_window: {
+      allocated_tokens: contextTokens,
+      monolithic_equivalent: monoTokens,
+      efficiency: `${Math.round((contextTokens / monoTokens) * 100)}% of monolithic`,
+      loaded_context: contents,
+    },
+    ...(agentKey === 'orchestrator' ? {
+      role: 'Task delegation and workflow coordination',
+      system_prompt: 'You are the Orchestrator. Route campaign brief to Discovery, then Evaluation, then Budget, then Delivery. No LLM inference — pure dispatch.',
+      inputs: ['campaign_brief', 'agent_registry', 'seller_urls'],
+      outputs: ['task_assignments', 'execution_plan'],
+    } : agentKey === 'discovery' ? {
+      role: 'Catalog querying via MCP tool calls',
+      system_prompt: 'Query all registered seller MCP servers for available ad inventory. Apply channel and exclusion filters before forwarding to Evaluation.',
+      tools: ['get_products (MCP)', 'get_audience_data (MCP)'],
+      transport: 'JSON-RPC 2.0 over Streamable HTTP',
+      inputs: ['seller_urls', 'channel_filter', 'exclusion_list'],
+      outputs: ['filtered_product_catalog'],
+    } : agentKey === 'evaluation' ? {
+      role: 'LLM-based product relevance scoring',
+      system_prompt: 'You are a Senior Media Buyer AI. Score each product on a 1-10 scale for campaign fit. Consider channel alignment, CPM efficiency, and audience overlap. Output structured JSON only.',
+      model: 'gemma-3-27b-it',
+      temperature: 0.3,
+      max_output_tokens: 2048,
+      output_format: 'JSON_SCHEMA_ENFORCED',
+      inputs: ['filtered_products', 'campaign_brief', 'brand_guidelines'],
+      outputs: ['scored_evaluations[]', 'recommended_budget_per_slot'],
+      safety_filters: ['competitive_exclusion', 'brand_safety_threshold'],
+    } : agentKey === 'budget' ? {
+      role: 'Deterministic budget allocation',
+      system_prompt: null,
+      algorithm: 'Greedy allocation: sort by score desc, cap at 40% of remaining per slot, enforce monthly ceiling',
+      inputs: ['scored_products', 'monthly_budget', 'max_single_buy'],
+      outputs: ['allocation_plan[]', 'remaining_budget'],
+    } : {
+      role: 'Buy execution and delivery monitoring',
+      system_prompt: null,
+      tools: ['create_media_buy (MCP)', 'get_media_buy_delivery (MCP)'],
+      transport: 'JSON-RPC 2.0 over Streamable HTTP',
+      inputs: ['allocation_plan', 'seller_urls'],
+      outputs: ['media_buy_records[]', 'delivery_metrics[]'],
+    }),
+  },
 });
 
 export const makeHandoff = (fromKey, toKey, payloadTokens, desc) => ({
@@ -165,6 +212,16 @@ export const makeHandoff = (fromKey, toKey, payloadTokens, desc) => ({
   toColor: BUYER_AGENTS[toKey].color,
   payloadTokens,
   payloadDescription: desc,
+  details: {
+    transfer: {
+      from_agent: BUYER_AGENTS[fromKey].name,
+      to_agent: BUYER_AGENTS[toKey].name,
+      payload_size: `${payloadTokens} tokens`,
+      payload_description: desc,
+      serialization: 'Structured JSON (no conversational history)',
+      context_strategy: 'Only filtered output passed forward — source agent context discarded',
+    },
+  },
 });
 
 // ── Main Generator ──────────────────────────────────────────────────────────
