@@ -46,11 +46,11 @@ const hashString = (str) => {
 };
 // ── Sub-Agent Definitions (Seller Side) ──────────────────────────────────────
 const SELLER_AGENTS = {
-  orchestrator: { name: 'Seller Orchestrator', icon: '🏢', color: '#f59e0b', usesLLM: false },
-  catalog:      { name: 'Catalog Agent', icon: '📦', color: '#3b82f6', usesLLM: false },
-  exchange:     { name: 'Exchange Agent', icon: '⚡', color: '#ef4444', usesLLM: false },
-  validation:   { name: 'Validation Agent', icon: '✅', color: '#f97316', usesLLM: false },
-  delivery:     { name: 'Delivery Agent', icon: '📊', color: '#10b981', usesLLM: false },
+  orchestrator: { name: 'Seller Orchestrator', icon: '🏢', color: '#f59e0b', usesLLM: true, model: 'grok-3-mini' },
+  catalog:      { name: 'Catalog Agent', icon: '📦', color: '#3b82f6', usesLLM: true, model: 'grok-3-mini' },
+  exchange:     { name: 'Exchange Agent', icon: '⚡', color: '#ef4444', usesLLM: true, model: 'grok-3-mini' },
+  validation:   { name: 'Validation Agent', icon: '✅', color: '#f97316', usesLLM: true, model: 'grok-3-mini' },
+  delivery:     { name: 'Delivery Agent', icon: '📊', color: '#10b981', usesLLM: true, model: 'grok-3-mini' },
 };
 
 const makeSellerLane = (agentKey, contextTokens, monoTokens, contents) => ({
