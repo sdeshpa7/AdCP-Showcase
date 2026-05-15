@@ -532,25 +532,87 @@ export const generateBuyerFeed = (agentId, agentData) => {
     tokenUsage: null,
   });
 
+  // Assign buy_type to each allocation: ~1/3 are Open Exchange (RTB), rest are Direct Buy
+  allocations.forEach((alloc, idx) => {
+    alloc.buy_type = (idx % 3 === 0) ? 'exchange' : 'direct';
+  });
+
+  const directAllocations = allocations.filter(a => a.buy_type === 'direct');
+  const exchangeAllocations = allocations.filter(a => a.buy_type === 'exchange');
+
   // Handoff: Budget Agent → Delivery Agent
-  events.push(makeHandoff('budget', 'delivery', allocations.length * 60, `${allocations.length} buy orders with budget allocations`));
+  events.push(makeHandoff('budget', 'delivery', allocations.length * 60,
+    `${directAllocations.length} direct buy orders + ${exchangeAllocations.length} open exchange bids`));
 
   // ── Delivery Agent Lane ───────────────────────────────────────────
-  events.push(makeLane('delivery', allocations.length * 120, monoWindow, ['buy_ids', 'seller_endpoints']));
+  events.push(makeLane('delivery', allocations.length * 120, monoWindow, ['buy_ids', 'seller_endpoints', 'rtb_config']));
 
-  // ── Phase 4: Execution (Delivery Agent) ───────────────────────────────
-  allocations.forEach((alloc, idx) => {
+  // ── Phase 4a: RTB Auction (for Open Exchange allocations) ─────────────
+  exchangeAllocations.forEach((alloc, idx) => {
+    const port = SELLER_PORTS[alloc.publisher] || 9000;
+    const floorCPM = Math.floor(alloc.cpm * 0.70);
+    const bidCPM = Math.floor(alloc.cpm * (0.85 + rand() * 0.30));
+    const numBidders = 3 + Math.floor(rand() * 5);
+    const won = rand() > 0.2; // 80% win rate for our agent
+    const clearingCPM = won ? Math.floor(floorCPM + (bidCPM - floorCPM) * (0.5 + rand() * 0.3)) : Math.floor(bidCPM * (1.02 + rand() * 0.1));
+
+    // Bid Request
+    events.push({
+      timestamp: addMinutes(1 + idx * 2),
+      phase: 'rtb',
+      phaseLabel: 'RTB Auction',
+      toolName: 'submit_bid',
+      icon: '⚡',
+      title: `Bid submitted: ${alloc.publisher} ${alloc.product_name} — ₹${bidCPM} CPM (floor: ₹${floorCPM})`,
+      details: {
+        bid_request: {
+          ad_slot: alloc.product_id,
+          publisher: alloc.publisher,
+          floor_price_cpm: `₹${floorCPM}`,
+          auction_type: 'second_price',
+          targeting: { channels: profile.channels, brand: agentData?.brand },
+        },
+        bid_response: {
+          our_bid_cpm: `₹${bidCPM}`,
+          competitors: numBidders,
+          bid_strategy: bidCPM > alloc.cpm ? 'aggressive' : 'value',
+        },
+        outcome: won ? {
+          status: '🏆 WON',
+          clearing_price_cpm: `₹${clearingCPM}`,
+          savings_vs_bid: `₹${bidCPM - clearingCPM} CPM (${((1 - clearingCPM / bidCPM) * 100).toFixed(0)}% savings via 2nd-price)`,
+          effective_budget: `₹${(alloc.budget * (clearingCPM / bidCPM) / 100000).toFixed(1)}L`,
+        } : {
+          status: '❌ LOST',
+          winning_bid_cpm: `₹${clearingCPM}`,
+          our_bid_cpm: `₹${bidCPM}`,
+          delta: `₹${clearingCPM - bidCPM} above our max`,
+        },
+        transport: `OpenRTB 2.6 → localhost:${port}/rtb`,
+      },
+      contextEngineering: [],
+      tokenUsage: null,
+    });
+
+    // Store win/loss for downstream
+    alloc._won = won;
+    alloc._clearingCPM = clearingCPM;
+  });
+
+  // ── Phase 4b: Direct Buy Execution ────────────────────────────────────
+  directAllocations.forEach((alloc, idx) => {
     const port = SELLER_PORTS[alloc.publisher] || 9000;
     const buyId = `mb-${agentId.substring(0, 2)}${String(idx + 1).padStart(2, '0')}-${Math.floor(rand() * 9999).toString().padStart(4, '0')}`;
 
     events.push({
       timestamp: addMinutes(2 + idx),
       phase: 'buy',
-      phaseLabel: 'Media Buy Execution',
+      phaseLabel: 'Direct Buy Execution',
       toolName: 'create_media_buy',
-      icon: '📝',
-      title: `Created media buy on ${alloc.publisher}: ${alloc.product_name} (₹${(alloc.budget / 100000).toFixed(1)}L)`,
+      icon: '📋',
+      title: `Direct buy on ${alloc.publisher}: ${alloc.product_name} (₹${(alloc.budget / 100000).toFixed(1)}L)`,
       details: {
+        buy_type: 'Direct Buy (Guaranteed)',
         request: {
           method: "tools/call",
           params: {
@@ -576,6 +638,37 @@ export const generateBuyerFeed = (agentId, agentData) => {
           sandbox: true,
         },
         transport: `JSON-RPC 2.0 → localhost:${port}/mcp`,
+      },
+      contextEngineering: [],
+      tokenUsage: null,
+    });
+  });
+
+  // ── Phase 4c: RTB Won Execution ───────────────────────────────────────
+  exchangeAllocations.filter(a => a._won).forEach((alloc, idx) => {
+    const port = SELLER_PORTS[alloc.publisher] || 9000;
+    const buyId = `rtb-${agentId.substring(0, 2)}${String(idx + 1).padStart(2, '0')}-${Math.floor(rand() * 9999).toString().padStart(4, '0')}`;
+
+    events.push({
+      timestamp: addMinutes(1 + idx),
+      phase: 'buy',
+      phaseLabel: 'RTB Won — Execution',
+      toolName: 'execute_rtb_win',
+      icon: '⚡',
+      title: `RTB win executed: ${alloc.publisher} ${alloc.product_name} at ₹${alloc._clearingCPM} CPM`,
+      details: {
+        buy_type: 'Open Exchange (RTB)',
+        auction_result: {
+          clearing_price: `₹${alloc._clearingCPM} CPM`,
+          auction_type: 'second_price',
+        },
+        response: {
+          media_buy_id: buyId,
+          status: "active",
+          valid_actions: ["pause", "cancel"],
+          revision: 1,
+        },
+        transport: `OpenRTB 2.6 → localhost:${port}/rtb`,
       },
       contextEngineering: [],
       tokenUsage: null,

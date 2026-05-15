@@ -1237,6 +1237,7 @@ function PublisherApp() {
                                 <th className="text-left" style={{ textAlign: 'left' }}>Campaign</th>
                                 <th className="text-center" style={{ textAlign: 'center' }}>Advertiser</th>
                                 <th className="text-center" style={{ textAlign: 'center' }}>Brand</th>
+                                <th className="text-center" style={{ textAlign: 'center' }}>Type</th>
                                 <th className="text-center" style={{ textAlign: 'center' }}>Targeting</th>
                                 <th className="text-center" style={{ textAlign: 'center' }}>Start</th>
                                 <th className="text-center" style={{ textAlign: 'center' }}>End</th>
@@ -1272,6 +1273,7 @@ function PublisherApp() {
                                       },
                                       budget: 0, impressions: 0, target_impressions: 0,
                                       reach: 0, target_reach: 0, clicks: 0, items: 0,
+                                      buy_types: new Set(),
                                       start_date: buy.start_date || '2026-05-01',
                                       end_date: buy.end_date || '2026-05-31',
                                       is_underpacing: false
@@ -1294,6 +1296,7 @@ function PublisherApp() {
                                   }
                                   if (buy.device) campaignGroups[cid].targeting.devices.add(buy.device);
                                   if (buy.targeting?.content) campaignGroups[cid].targeting.content.add(buy.targeting.content);
+                                  if (buy.buy_type) campaignGroups[cid].buy_types.add(buy.buy_type);
                                 });
 
                                 // Determine if each campaign is content-targeted (all line items share same content)
@@ -1320,6 +1323,19 @@ function PublisherApp() {
                                     </td>
                                     <td className="text-center" style={{ textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>{campaign.advertiser}</td>
                                     <td className="text-center" style={{ textAlign: 'center', fontSize: '0.8rem', fontWeight: 600, color: '#fff' }}>{campaign.brand}</td>
+                                    <td className="text-center" style={{ textAlign: 'center' }}>
+                                      <span style={{
+                                        background: campaign.buy_types.has('exchange') ? 'rgba(249, 115, 22, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                                        color: campaign.buy_types.has('exchange') ? 'var(--accent-orange)' : 'var(--accent-blue)',
+                                        padding: '3px 8px',
+                                        borderRadius: '4px',
+                                        fontSize: '0.65rem',
+                                        fontWeight: 700,
+                                        whiteSpace: 'nowrap'
+                                      }}>
+                                        {campaign.buy_types.has('exchange') ? '⚡ Open Exchange' : '📋 Direct Buy'}
+                                      </span>
+                                    </td>
                                     <td className="text-center" style={{ textAlign: 'center', minWidth: '180px', maxWidth: '240px' }}>
                                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
                                         <div style={{ display: 'flex', gap: '6px', whiteSpace: 'nowrap' }}>

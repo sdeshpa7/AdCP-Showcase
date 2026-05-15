@@ -310,6 +310,14 @@ const createLineItem = (agentId, campaignId, name, lineItemName, status, publish
       content: contentLabel
     },
     daily_delivery: dailyDelivery,
+    buy_type: status === 'completed' ? 'direct' : (hashString(lineItemId) % 3 === 0 ? 'exchange' : 'direct'),
+    rtb: (status !== 'completed' && hashString(lineItemId) % 3 === 0) ? {
+      bid_price: parseFloat((cpm * (0.85 + (hashString(lineItemId + 'bid') % 100) / 333)).toFixed(2)),
+      win_rate: parseFloat((0.35 + (hashString(lineItemId + 'wr') % 100) / 250).toFixed(2)),
+      floor_price: parseFloat((cpm * 0.70).toFixed(2)),
+      auction_type: 'second_price',
+      avg_competitors: 3 + (hashString(lineItemId + 'comp') % 5),
+    } : null,
     performance: {
       impressions: sumImps || impressions,
       reach: Math.floor((sumImps || impressions) * 0.8),

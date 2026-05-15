@@ -1805,6 +1805,7 @@ function App() {
                         <tr>
                           <th className="text-left" style={{ textAlign: 'left' }}>Campaign</th>
                           <th className="text-center" style={{ textAlign: 'center' }}>Brand</th>
+                          <th className="text-center" style={{ textAlign: 'center' }}>Type</th>
                           <th className="text-center" style={{ textAlign: 'center' }}>Publisher</th>
                           <th className="text-center" style={{ textAlign: 'center' }}>Targeting</th>
                           <th className="text-center" style={{ textAlign: 'center' }}>Start</th>
@@ -1845,7 +1846,7 @@ function App() {
 
                           if (buys.length === 0) return (
                             <tr>
-                              <td colSpan="14" className="text-center" style={{ padding: '3rem', color: 'var(--text-muted)' }}>
+                              <td colSpan="15" className="text-center" style={{ padding: '3rem', color: 'var(--text-muted)' }}>
                                 No campaigns found in the selected period.
                               </td>
                             </tr>
@@ -1870,6 +1871,7 @@ function App() {
                                   content: new Set()
                                 },
                                 publisher: new Set(),
+                                buy_types: new Set(),
                                 status: buy.status || 'Active',
                                 budget: 0,
                                 impressions: 0,
@@ -1901,6 +1903,7 @@ function App() {
                             }
                             if (buy.device) campaignGroups[cid].targeting.devices.add(buy.device);
                             if (buy.targeting?.content) campaignGroups[cid].targeting.content.add(buy.targeting.content);
+                            if (buy.buy_type) campaignGroups[cid].buy_types.add(buy.buy_type);
                           });
 
                           // Determine if each campaign is content-targeted
@@ -1943,6 +1946,19 @@ function App() {
                                     <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 400, marginTop: '2px' }}>ID: {campaign.id}</div>
                                   </td>
                                   <td className="text-center" style={{ textAlign: 'center', fontSize: '0.8rem', fontWeight: 600, color: '#fff' }}>{campaign.brand}</td>
+                                  <td className="text-center" style={{ textAlign: 'center' }}>
+                                    <span style={{
+                                      background: campaign.buy_types.has('exchange') ? 'rgba(249, 115, 22, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                                      color: campaign.buy_types.has('exchange') ? 'var(--accent-orange)' : 'var(--accent-blue)',
+                                      padding: '3px 8px',
+                                      borderRadius: '4px',
+                                      fontSize: '0.65rem',
+                                      fontWeight: 700,
+                                      whiteSpace: 'nowrap'
+                                    }}>
+                                      {campaign.buy_types.has('exchange') ? '⚡ Open Exchange' : '📋 Direct Buy'}
+                                    </span>
+                                  </td>
                                   <td className="text-center" style={{ textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                                     {Array.from(campaign.publisher).join(' + ')}
                                   </td>
