@@ -1,7 +1,23 @@
 import { useState, useEffect } from 'react';
-import { seededRandom, hashString } from './useIntelligenceFeed';
 
 export const SYSTEM_DATE = new Date().toISOString().split('T')[0];
+
+// ── Seeded PRNG (local copy to avoid circular import with useIntelligenceFeed) ──
+const seededRandom = (seed) => {
+  let s = seed;
+  return () => {
+    s = (s * 16807 + 0) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+};
+const hashString = (str) => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+};
 
 const gaussianRandom = (mean = 0, stdev = 1) => {
   const u = 1 - Math.random();
