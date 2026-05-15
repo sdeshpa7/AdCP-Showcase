@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAgentData } from './hooks/useAgentData';
+import { generateBuyerFeed } from './hooks/useIntelligenceFeed';
+import { generateForecastFeed } from './hooks/useForecastFeed';
 import {
   Activity,
   IndianRupee,
@@ -16,7 +18,10 @@ import {
   Calendar,
   Share2,
   Monitor,
-  Layout
+  Layout,
+  ChevronDown,
+  ChevronUp,
+  Eye
 } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis } from 'recharts';
 
@@ -54,6 +59,37 @@ function App() {
   const [currentView, setCurrentView] = useState('dashboard');
   const [campaignPrompt, setCampaignPrompt] = useState('');
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [expandedFeedEvent, setExpandedFeedEvent] = useState(null);
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [simulationEvents, setSimulationEvents] = useState([]);
+  const [allFeedEvents, setAllFeedEvents] = useState([]);
+  const feedTimelineRef = useRef(null);
+  const simulationTimerRef = useRef(null);
+
+  // Auto-scroll feed timeline when new events arrive
+  useEffect(() => {
+    if (feedTimelineRef.current && simulationEvents.length > 0) {
+      feedTimelineRef.current.scrollTop = feedTimelineRef.current.scrollHeight;
+    }
+  }, [simulationEvents.length]);
+
+  // Cleanup simulation timer on unmount or view change
+  useEffect(() => {
+    return () => {
+      if (simulationTimerRef.current) clearTimeout(simulationTimerRef.current);
+    };
+  }, []);
+
+  // Reset simulation when switching agents
+  useEffect(() => {
+    setSimulationEvents([]);
+    setAllFeedEvents([]);
+    setIsSimulating(false);
+    if (simulationTimerRef.current) clearTimeout(simulationTimerRef.current);
+  }, [activeAgentId]);
+
+  const [expandedHistoryId, setExpandedHistoryId] = useState(null);
+  const [forecastMode, setForecastMode] = useState(false);
 
   const handleResetToCurrent = () => {
     setTimeframe('monthly');
@@ -343,7 +379,7 @@ function App() {
           <div className="loading-screen">Waiting for {agents.find(a => a.id === activeAgentId)?.name} agent to come online...</div>
         ) : currentView === 'create' ? (
           /* ======================= BUYER AGENT CAMPAIGN CREATION ======================= */
-          <div className="create-campaign-view" style={{ padding: '2.5rem', maxWidth: '900px', margin: '0 auto' }}>
+          <div className="create-campaign-view" style={{ padding: '2.5rem', maxWidth: '1200px', margin: '0 auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4rem' }}>
               <button className="back-btn" onClick={() => setCurrentView('dashboard')}>
                 <ArrowLeft size={16} /> Back to Dashboard
@@ -442,23 +478,81 @@ function App() {
                       </div>
                     )}
 
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '2rem', alignItems: 'center' }}>
-                      <div style={{ textAlign: 'right' }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', alignItems: 'center' }}>
+                      <div style={{ textAlign: 'right', marginRight: 'auto' }}>
                         <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.2rem' }}>Est. Token Usage</div>
                         <div style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', fontFamily: 'monospace' }}>
                           {(1200 + Math.floor(campaignPrompt.length * 0.5)).toLocaleString()} <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>tokens</span>
                         </div>
                       </div>
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div className="status-dot active"></div> Agent Ready for Inference
+                        <div className="status-dot active"></div> Agent Ready
                       </div>
+                      <button
+                        className="btn-forecast"
+                        disabled={isSimulating}
+                        onClick={() => {
+                          if (isSimulating) return;
+                          setForecastMode(true);
+                          const events = generateForecastFeed(activeAgentId, activeData);
+                          setAllFeedEvents(events);
+                          setSimulationEvents([]);
+                          setExpandedFeedEvent(null);
+                          setIsSimulating(true);
+                          let idx = 0;
+                          const streamNext = () => {
+                            if (idx < events.length) {
+                              setSimulationEvents(prev => [...prev, events[idx]]);
+                              idx++;
+                              const lastEvt = events[idx - 1];
+                              const delay = lastEvt?.type === 'lane-start' ? 400 :
+                                            lastEvt?.type === 'handoff' ? 600 :
+                                            lastEvt?.type === 'forecast-card' ? 1200 :
+                                            lastEvt?.type === 'summary-table' ? 1500 :
+                                            lastEvt?.phase === 'evaluate' ? 1800 :
+                                            lastEvt?.phase === 'forecast' ? 1000 : 800;
+                              simulationTimerRef.current = setTimeout(streamNext, delay);
+                            } else {
+                              setIsSimulating(false);
+                            }
+                          };
+                          simulationTimerRef.current = setTimeout(streamNext, 500);
+                        }}
+                      >
+                        <Eye size={18} />
+                        {isSimulating && forecastMode ? 'Forecasting...' : 'Forecast Campaign'}
+                      </button>
                       <button
                         onClick={() => {
                           if (requiresHITL && !isAuthorized) {
                             alert('Please authorize the spend before deploying.');
                             return;
                           }
-                          alert('Agent deploying campaign... (Inference connection coming soon)');
+                          if (isSimulating) return;
+                          setForecastMode(false);
+                          const events = generateBuyerFeed(activeAgentId, activeData);
+                          setAllFeedEvents(events);
+                          setSimulationEvents([]);
+                          setExpandedFeedEvent(null);
+                          setIsSimulating(true);
+                          let idx = 0;
+                          const streamNext = () => {
+                            if (idx < events.length) {
+                              setSimulationEvents(prev => [...prev, events[idx]]);
+                              idx++;
+                              const lastEvt = events[idx - 1];
+                              const delay = lastEvt?.type === 'lane-start' ? 400 :
+                                            lastEvt?.type === 'handoff' ? 600 :
+                                            lastEvt?.type === 'summary-table' ? 1500 :
+                                            lastEvt?.phase === 'evaluate' ? 1800 :
+                                            lastEvt?.phase === 'buy' ? 1200 :
+                                            lastEvt?.phase === 'summary' ? 2000 : 900;
+                              simulationTimerRef.current = setTimeout(streamNext, delay);
+                            } else {
+                              setIsSimulating(false);
+                            }
+                          };
+                          simulationTimerRef.current = setTimeout(streamNext, 500);
                         }}
                         style={{
                           padding: '12px 32px',
@@ -487,7 +581,8 @@ function App() {
                           e.currentTarget.style.boxShadow = '0 8px 24px rgba(59, 130, 246, 0.3)';
                         }}
                       >
-                        <TrendingUp size={18} /> Deploy Campaign
+                        <TrendingUp size={18} />
+                        {isSimulating && !forecastMode ? 'Agent Running...' : (simulationEvents.length > 0 && !forecastMode ? 'Re-deploy Campaign' : 'Deploy Campaign')}
                       </button>
                     </div>
                   </>
@@ -509,6 +604,370 @@ function App() {
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Optimized token usage via protocol-level context triggers.</div>
               </div>
             </div>
+
+            {/* ── Agent Intelligence Feed (appears after Deploy) ── */}
+            {(simulationEvents.length > 0 || isSimulating) && (() => {
+              const visibleEvents = simulationEvents;
+              const totalTokens = visibleEvents.reduce((s, e) => s + (e.tokenUsage?.total || 0), 0);
+              const totalSaved = visibleEvents.reduce((s, e) => s + (e.contextEngineering || []).reduce((ss, ce) => ss + (ce.tokensSaved || 0), 0), 0);
+              const totalCost = visibleEvents.reduce((s, e) => s + (e.tokenUsage?.costINR || 0), 0);
+              const totalEvents = allFeedEvents.length;
+              
+              return (
+                <div className="intelligence-feed" style={{ marginTop: '2rem' }}>
+                  <div className="feed-header">
+                    <div className="feed-header-title">
+                      <div className="feed-live-dot" style={isSimulating ? (forecastMode ? { background: '#ec4899', boxShadow: '0 0 8px rgba(236,72,153,0.6)' } : {}) : { background: '#6b7280', boxShadow: 'none', animation: 'none' }} />
+                      {isSimulating ? (forecastMode ? 'Forecast Intelligence Feed — LIVE' : 'Agent Intelligence Feed — LIVE') : (forecastMode ? 'Forecast Intelligence Feed — Complete' : 'Agent Intelligence Feed — Complete')}
+                    </div>
+                    <div className="feed-stats">
+                      <div className="feed-stat">
+                        Progress: <span className="feed-stat-value">{visibleEvents.length}/{totalEvents}</span>
+                      </div>
+                      <div className="feed-stat">
+                        Tokens: <span className="feed-stat-value">{totalTokens.toLocaleString()}</span>
+                      </div>
+                      <div className="feed-stat">
+                        Saved: <span className="feed-stat-value" style={{ color: '#10b981' }}>{totalSaved.toLocaleString()}</span>
+                      </div>
+                      <div className="feed-stat">
+                        Cost: <span className="feed-stat-value" style={{ color: '#8b5cf6' }}>₹{totalCost.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="feed-timeline" ref={feedTimelineRef}>
+                    {visibleEvents.map((evt, idx) => {
+                      // Lane-start event
+                      if (evt.type === 'lane-start') {
+                        const cw = evt.contextWindow;
+                        return (
+                          <div key={idx} className="feed-lane-header" style={{ '--lane-color': evt.agent.color, animation: 'fadeIn 0.4s ease-out' }}>
+                            <div className="lane-title">
+                              <span>{evt.agent.icon}</span> {evt.agent.name}
+                              <span className="lane-badge" data-llm={String(evt.agent.usesLLM)}>{evt.agent.usesLLM ? 'LLM' : 'Deterministic'}</span>
+                            </div>
+                            <div className="lane-meta">
+                              <div className="feed-context-gauge">
+                                <span className="gauge-label">{cw.inputTokens.toLocaleString()} tok ({cw.windowPct}%)</span>
+                                <div className="gauge-bar"><div className="gauge-fill" style={{ width: `${cw.windowPct}%`, background: evt.agent.color }} /></div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+                      // Handoff event
+                      if (evt.type === 'handoff') {
+                        return (
+                          <div key={idx} className="feed-handoff" style={{ animation: 'fadeIn 0.4s ease-out' }}>
+                            <span className="handoff-arrow">→</span>
+                            <span>Handoff: {evt.from} → <span style={{ color: evt.toColor, fontWeight: 700 }}>{evt.to}</span></span>
+                            <span className="handoff-payload">{evt.payloadTokens.toLocaleString()} tok</span>
+                            <span style={{ opacity: 0.6 }}>{evt.payloadDescription}</span>
+                          </div>
+                        );
+                      }
+                      // Forecast card event
+                      if (evt.type === 'forecast-card') {
+                        const t = evt.totals;
+                        const fmtM = (v) => v >= 1000000 ? `${(v/1000000).toFixed(1)}M` : `${(v/1000).toFixed(0)}K`;
+                        const fmtL = (v) => `₹${(v/100000).toFixed(1)}L`;
+                        return (
+                          <div key={idx} className="forecast-card" style={{ animation: 'fadeIn 0.5s ease-out' }}>
+                            <div className="forecast-header">
+                              <div className="forecast-title">📊 Campaign Forecast — {evt.brand}</div>
+                              <span className="forecast-badge">Forecast Only — No Buys Created</span>
+                            </div>
+                            <div className="forecast-kpis">
+                              <div className="forecast-kpi">
+                                <div className="forecast-kpi-label">Budget</div>
+                                <div className="forecast-kpi-value">{fmtL(t.budget)}</div>
+                              </div>
+                              <div className="forecast-kpi">
+                                <div className="forecast-kpi-label">Est. Impressions</div>
+                                <div className="forecast-kpi-value">{fmtM(t.impressions)}</div>
+                              </div>
+                              <div className="forecast-kpi">
+                                <div className="forecast-kpi-label">Est. Reach</div>
+                                <div className="forecast-kpi-value">{fmtM(t.reach)}</div>
+                              </div>
+                              <div className="forecast-kpi">
+                                <div className="forecast-kpi-label">Est. ROAS</div>
+                                <div className="forecast-kpi-value" style={{ color: t.roas >= 4 ? '#10b981' : '#f97316' }}>{t.roas}x</div>
+                              </div>
+                            </div>
+                            <table>
+                              <thead><tr><th>Publisher</th><th>Slot</th><th>Budget</th><th>Impressions</th><th>Reach</th><th>ROAS</th></tr></thead>
+                              <tbody>
+                                {evt.forecasts.map((f, fi) => (
+                                  <tr key={fi}>
+                                    <td>{f.publisher}</td>
+                                    <td style={{ color: '#60a5fa' }}>{f.product_name.split(' — ')[1]}</td>
+                                    <td>{fmtL(f.budget)}</td>
+                                    <td>{fmtM(f.impressions)}</td>
+                                    <td>{fmtM(f.reach)}</td>
+                                    <td style={{ color: f.roas >= 4 ? '#10b981' : '#f97316', fontWeight: 700 }}>{f.roas}x</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                            <div className="forecast-footer">
+                              <span>⚡ {t.llmCalls} LLM call · {t.llmTokens.toLocaleString()} tokens · ₹{t.llmCost.toFixed(2)}</span>
+                              <span className="safe">📝 No media buys created. Forecast only.</span>
+                            </div>
+                          </div>
+                        );
+                      }
+                      // Summary table event
+                      if (evt.type === 'summary-table') {
+                        return (
+                          <div key={idx} className="feed-summary-table" style={{ animation: 'fadeIn 0.5s ease-out' }}>
+                            <h4>Multi-Agent Efficiency Comparison</h4>
+                            <table><thead><tr><th>Metric</th><th>Monolithic Agent</th><th>Multi-Agent (Actual)</th><th>Savings</th></tr></thead>
+                              <tbody>{evt.rows.map((r, ri) => (
+                                <tr key={ri}><td>{r.metric}</td><td>{r.mono}</td><td>{r.multi}</td><td className="savings">{r.savings}</td></tr>
+                              ))}</tbody>
+                            </table>
+                          </div>
+                        );
+                      }
+                      // Regular event
+                      return (
+                      <div
+                        key={idx}
+                        className={`feed-event ${expandedFeedEvent === idx ? 'expanded' : ''}`}
+                        data-phase={evt.phase}
+                        onClick={() => setExpandedFeedEvent(expandedFeedEvent === idx ? null : idx)}
+                        style={{ animation: 'fadeIn 0.4s ease-out', borderLeft: evt.agentColor ? `2px solid ${evt.agentColor}` : undefined }}
+                      >
+                        <div className="feed-event-top">
+                          <div style={{ display: 'flex', alignItems: 'flex-start', flex: 1 }}>
+                            <span className="feed-event-icon">{evt.icon}</span>
+                            <div style={{ flex: 1 }}>
+                              <div className="feed-event-title">{evt.title}</div>
+                              {evt.agentName && <div style={{ fontSize: '0.6rem', color: evt.agentColor || 'var(--text-muted)', fontWeight: 600, marginTop: '0.1rem' }}>{evt.agentName}</div>}
+                              {evt.toolName && <div className="feed-tool-name">{evt.toolName}</div>}
+                              
+                              {evt.contextEngineering?.length > 0 && (
+                                <div className="feed-ce-badges">
+                                  {evt.contextEngineering.map((ce, ci) => (
+                                    <span key={ci} className="feed-ce-badge">
+                                      ⚡ {ce.strategy}
+                                      {ce.tokensSaved > 0 && (
+                                        <span className="feed-ce-saved"> −{ce.tokensSaved.toLocaleString()} tok</span>
+                                      )}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+
+                              {evt.tokenUsage && (
+                                <div className="feed-token-bar-container">
+                                  <span className="feed-token-label">{evt.tokenUsage.total.toLocaleString()} tokens</span>
+                                  <div className="feed-token-bar">
+                                    <div className="feed-token-bar-fill" style={{ width: `${Math.min((evt.tokenUsage.total / 5000) * 100, 100)}%` }} />
+                                  </div>
+                                  <span className="feed-token-cost">₹{evt.tokenUsage.costINR.toFixed(3)}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="feed-event-meta">
+                            <span className="feed-phase-badge" data-phase={evt.phase}>{evt.phaseLabel}</span>
+                            <span className="feed-event-time">
+                              {new Date(evt.timestamp).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                            </span>
+                          </div>
+                        </div>
+
+                        {expandedFeedEvent === idx && (
+                          <div className="feed-expand">
+                            {JSON.stringify(evt.details, null, 2)}
+                          </div>
+                        )}
+                      </div>
+                      );
+                    })}
+                    {isSimulating && (
+                      <div className="feed-event" data-phase="init" style={{ opacity: 0.5 }}>
+                        <div className="feed-event-top">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <div className="loader" style={{ width: '14px', height: '14px', borderWidth: '2px' }} />
+                            <span className="feed-event-title" style={{ color: 'var(--text-muted)' }}>Processing next action...</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Past Campaigns Accordion */}
+            {(() => {
+              const pastBuys = activeData?.past_buys || [];
+              const campaignMap = {};
+              pastBuys.forEach(buy => {
+                const cid = buy.campaign_id || buy.id;
+                if (!campaignMap[cid]) campaignMap[cid] = [];
+                campaignMap[cid].push(buy);
+              });
+              const pastCampaigns = Object.entries(campaignMap)
+                .map(([cid, buys]) => ({
+                  id: cid,
+                  name: (buys[0]?.name || 'Campaign').split(' - ')[0],
+                  brand: buys[0]?.brand || activeData.brand,
+                  start_date: buys.reduce((min, b) => b.start_date < min ? b.start_date : min, buys[0].start_date),
+                  end_date: buys.reduce((max, b) => b.end_date > max ? b.end_date : max, buys[0].end_date),
+                  budget: buys.reduce((s, b) => s + (b.budget || 0), 0),
+                  target_impressions: buys.reduce((s, b) => s + (b.target_impressions || 0), 0),
+                  target_reach: buys.reduce((s, b) => s + (b.target_reach || 0), 0),
+                  impressions: buys.reduce((s, b) => s + (b.performance?.impressions || 0), 0),
+                  reach: buys.reduce((s, b) => s + (b.performance?.reach || 0), 0),
+                  roas: buys.length > 0 ? buys.reduce((s, b) => s + (b.performance?.roas || 0), 0) / buys.length : 0,
+                  lineItems: buys.length,
+                  publishers: [...new Set(buys.map(b => b.publisher))]
+                }))
+                .sort((a, b) => new Date(b.end_date) - new Date(a.end_date))
+                .slice(0, 5);
+
+              if (pastCampaigns.length === 0) return null;
+
+              const fmtDate = (d) => { try { return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' }); } catch(e) { return d; } };
+              const fmtCr = (n) => n >= 10000000 ? '\u20b9' + (n / 10000000).toFixed(2) + ' Cr' : n >= 100000 ? '\u20b9' + (n / 100000).toFixed(1) + ' L' : '\u20b9' + n.toLocaleString('en-IN');
+              const fmtM = (n) => n >= 1000000 ? (n / 1000000).toFixed(1) + 'M' : n >= 1000 ? (n / 1000).toFixed(0) + 'K' : n.toString();
+
+              return (
+                <div style={{ marginTop: '3rem' }}>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#fff' }}>
+                    <History size={18} /> Past Campaigns
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 400 }}>({pastCampaigns.length} most recent)</span>
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {pastCampaigns.map((camp) => {
+                      const isOpen = expandedHistoryId === camp.id;
+                      const historyFeed = isOpen ? generateBuyerFeed(activeAgentId, activeData) : [];
+                      return (
+                        <div key={camp.id} className="card" style={{ padding: 0, overflow: 'hidden', border: isOpen ? '1px solid rgba(59,130,246,0.3)' : '1px solid var(--border-light)' }}>
+                          <div
+                            onClick={() => setExpandedHistoryId(isOpen ? null : camp.id)}
+                            style={{
+                              padding: '1rem 1.5rem',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              transition: 'background 0.2s',
+                              background: isOpen ? 'rgba(59,130,246,0.05)' : 'transparent'
+                            }}
+                          >
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.4rem' }}>
+                                <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#fff' }}>{camp.name}</span>
+                                <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(16,185,129,0.1)', color: '#10b981', fontWeight: 600 }}>COMPLETED</span>
+                              </div>
+                              <div style={{ display: 'flex', gap: '2rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                                <span>{fmtDate(camp.start_date)} - {fmtDate(camp.end_date)}</span>
+                                <span>{camp.publishers.join(', ')}</span>
+                                <span>{camp.lineItems} line items</span>
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+                              <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.8rem' }}>
+                                <div style={{ textAlign: 'right' }}>
+                                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Budget</div>
+                                  <div style={{ fontWeight: 700, color: '#fff' }}>{fmtCr(camp.budget)}</div>
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Impressions</div>
+                                  <div style={{ fontWeight: 700, color: '#fff' }}>{fmtM(camp.impressions)}</div>
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Reach</div>
+                                  <div style={{ fontWeight: 700, color: '#fff' }}>{fmtM(camp.reach)}</div>
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>ROAS</div>
+                                  <div style={{ fontWeight: 700, color: camp.roas >= 4 ? '#10b981' : '#f97316' }}>{camp.roas.toFixed(1)}x</div>
+                                </div>
+                              </div>
+                              {isOpen ? <ChevronUp size={18} color="var(--text-muted)" /> : <ChevronDown size={18} color="var(--text-muted)" />}
+                            </div>
+                          </div>
+
+                          {isOpen && (
+                            <div style={{ borderTop: '1px solid var(--border-light)' }}>
+                              <div className="intelligence-feed" style={{ margin: 0, borderRadius: 0, border: 'none' }}>
+                                <div className="feed-header" style={{ borderRadius: 0 }}>
+                                  <div className="feed-header-title">
+                                    <div className="feed-live-dot" style={{ background: '#6b7280', boxShadow: 'none', animation: 'none' }} />
+                                    Historical Agent Feed
+                                  </div>
+                                  <div className="feed-stats">
+                                    <div className="feed-stat">
+                                      Events: <span className="feed-stat-value">{historyFeed.length}</span>
+                                    </div>
+                                    <div className="feed-stat">
+                                      Tokens: <span className="feed-stat-value">{historyFeed.reduce((s, e) => s + (e.tokenUsage?.total || 0), 0).toLocaleString()}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="feed-timeline" style={{ maxHeight: '400px' }}>
+                                  {historyFeed.map((evt, idx) => {
+                                    if (evt.type === 'lane-start') {
+                                      const cw = evt.contextWindow;
+                                      return (<div key={idx} className="feed-lane-header" style={{ '--lane-color': evt.agent.color }}>
+                                        <div className="lane-title"><span>{evt.agent.icon}</span> {evt.agent.name} <span className="lane-badge" data-llm={String(evt.agent.usesLLM)}>{evt.agent.usesLLM ? 'LLM' : 'Deterministic'}</span></div>
+                                        <div className="lane-meta"><div className="feed-context-gauge"><span className="gauge-label">{cw.inputTokens.toLocaleString()} tok ({cw.windowPct}%)</span><div className="gauge-bar"><div className="gauge-fill" style={{ width: `${cw.windowPct}%`, background: evt.agent.color }} /></div></div></div>
+                                      </div>);
+                                    }
+                                    if (evt.type === 'handoff') {
+                                      return (<div key={idx} className="feed-handoff"><span className="handoff-arrow">→</span><span>Handoff: {evt.from} → <span style={{ color: evt.toColor, fontWeight: 700 }}>{evt.to}</span></span><span className="handoff-payload">{evt.payloadTokens.toLocaleString()} tok</span></div>);
+                                    }
+                                    if (evt.type === 'summary-table') {
+                                      return (<div key={idx} className="feed-summary-table"><h4>Multi-Agent Efficiency</h4><table><thead><tr><th>Metric</th><th>Monolithic</th><th>Multi-Agent</th><th>Savings</th></tr></thead><tbody>{evt.rows.map((r, ri) => (<tr key={ri}><td>{r.metric}</td><td>{r.mono}</td><td>{r.multi}</td><td className="savings">{r.savings}</td></tr>))}</tbody></table></div>);
+                                    }
+                                    return (
+                                    <div key={idx} className="feed-event" data-phase={evt.phase} style={{ borderLeft: evt.agentColor ? `2px solid ${evt.agentColor}` : undefined }}>
+                                      <div className="feed-event-top">
+                                        <div style={{ display: 'flex', alignItems: 'flex-start', flex: 1 }}>
+                                          <span className="feed-event-icon">{evt.icon}</span>
+                                          <div style={{ flex: 1 }}>
+                                            <div className="feed-event-title">{evt.title}</div>
+                                            {evt.agentName && <div style={{ fontSize: '0.6rem', color: evt.agentColor || 'var(--text-muted)', fontWeight: 600, marginTop: '0.1rem' }}>{evt.agentName}</div>}
+                                            {evt.toolName && <div className="feed-tool-name">{evt.toolName}</div>}
+                                            {evt.contextEngineering?.length > 0 && (
+                                              <div className="feed-ce-badges">
+                                                {evt.contextEngineering.map((ce, ci) => (
+                                                  <span key={ci} className="feed-ce-badge">
+                                                    {ce.strategy}
+                                                    {ce.tokensSaved > 0 && <span className="feed-ce-saved"> -{ce.tokensSaved.toLocaleString()} tok</span>}
+                                                  </span>
+                                                ))}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                        <div className="feed-event-meta">
+                                          <span className="feed-phase-badge" data-phase={evt.phase}>{evt.phaseLabel}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
           </div>
         ) : (
           <>
@@ -1512,6 +1971,7 @@ function App() {
                     </table>
                   </div>
                 </div>
+
               </div>
             )}
           </>
