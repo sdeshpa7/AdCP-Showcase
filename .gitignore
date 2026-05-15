@@ -44,3 +44,6 @@ Thumbs.db
 
 # Build
 *.tsbuildinfo
+
+# Data snapshots (large generated files)
+adcp-dashboard/data/system_snapshot.json
