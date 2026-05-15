@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { seededRandom, hashString } from './useIntelligenceFeed';
 
 export const SYSTEM_DATE = new Date().toISOString().split('T')[0];
 
@@ -134,6 +135,49 @@ const PUBLISHER_SHOWS = {
 
 let idCounter = 1;
 
+// ── Deterministic daily delivery time-series generator ────────────────────────
+// Produces a per-day array with realistic patterns:
+//  • 3-day ramp-up at flight start
+//  • 30% weekend dip (Sat/Sun)
+//  • 15% pacing acceleration in the last 20% of the flight
+//  • ±15% seeded noise per day (deterministic across refreshes)
+const generateDailyDelivery = (startStr, endStr, status, totalImps, totalClicks, totalSpend, lineItemId) => {
+  const rng = seededRandom(hashString(lineItemId + startStr));
+  const start = new Date(startStr);
+  const end = new Date(endStr);
+  const today = new Date(SYSTEM_DATE);
+  const totalDays = Math.ceil((end - start) / 86400000) + 1;
+
+  // Build weighted day entries
+  const entries = [];
+  for (let i = 0; i < totalDays; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    // Active campaigns: no delivery for future dates
+    if (status === 'active' && d > today) break;
+
+    const dayOfWeek = d.getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const rampUp = Math.min(1.0, (i + 1) / 3);         // Gradual 3-day ramp
+    const weekendDip = isWeekend ? 0.70 : 1.0;          // 30% weekend dip
+    const endAccel = i > totalDays * 0.8 ? 1.15 : 1.0;  // Pacing push last 20%
+    const noise = 0.85 + rng() * 0.30;                  // ±15% seeded daily noise
+
+    entries.push({ date: d.toISOString().split('T')[0], w: rampUp * weekendDip * endAccel * noise });
+  }
+
+  if (entries.length === 0) return [];
+
+  // Normalize weights so daily values sum to the aggregate totals
+  const totalWeight = entries.reduce((s, e) => s + e.w, 0);
+  return entries.map(({ date, w }) => ({
+    date,
+    impressions: Math.round((w / totalWeight) * totalImps),
+    clicks: Math.round((w / totalWeight) * totalClicks),
+    spend: parseFloat(((w / totalWeight) * totalSpend).toFixed(2)),
+  }));
+};
+
 const createLineItem = (agentId, campaignId, name, lineItemName, status, publisher, device, format, budget, start, end, targetParams, brandName) => {
   const profile = AGENT_PROFILES[agentId];
   const budgetVal = jitter(budget);
@@ -162,7 +206,6 @@ const createLineItem = (agentId, campaignId, name, lineItemName, status, publish
     const timeRatio = Math.max(0.05, Math.min(1.0, elapsed / (totalDuration || 1)));
     
     // Pacing variance: gaussian around 1.0 (mean), 0.10 (stdev)
-    // Results in ~0.8 to ~1.2 multiplier to simulate under/over pacing
     const pacingFactor = gaussianRandom(1.0, 0.10); 
     deliveryPct = Math.max(0.01, Math.min(1.0, timeRatio * pacingFactor));
     isUnderpacing = pacingFactor < 0.80;
@@ -177,7 +220,6 @@ const createLineItem = (agentId, campaignId, name, lineItemName, status, publish
   const contentLabel = (PUBLISHER_SHOWS[publisher] || ["Run of Network"])[idCounter % 4];
 
   // --- LAYER 1: Funnel-Position ROAS ---
-  // Device/format sets the base funnel position multiplier.
   let roas = profile.roas_base;
   if (device === 'CTV' || format === 'Billboard') {
     roas *= 0.3; // Upper funnel: awareness, not direct response
@@ -188,17 +230,13 @@ const createLineItem = (agentId, campaignId, name, lineItemName, status, publish
   }
 
   // --- LAYER 2: Content Context ROAS ---
-  // Live sports (IPL) drive a massive downstream "halo effect":
-  // brands report 2x–3x higher search-lift and +40% conversion efficiency.
   if (contentLabel === 'IPL Live Broadcast') {
-    roas *= 2.0; // Research: IPL halo — biggest tentpole event in India
+    roas *= 2.0;
   } else if (['End of Reason Sale Preview', 'Live Commerce', 'Great Indian Festival', 'Amazon Fashion Week'].some(s => contentLabel.includes(s))) {
-    roas *= 1.5; // High-intent commerce: audience is actively shopping
+    roas *= 1.5;
   }
 
   // --- LAYER 3: Premium Inventory Lift ---
-  // CTV on JioHotstar = affluent urban household on the biggest screen.
-  // Higher basket sizes mean better post-view attribution even with 0 clicks.
   if (publisher === 'JioHotstar' && device === 'CTV') {
     roas *= 1.2;
   }
@@ -208,21 +246,34 @@ const createLineItem = (agentId, campaignId, name, lineItemName, status, publish
   // Calibrate Clicks based on Format and Device
   let clicks = 0;
   if (device === 'CTV') {
-    clicks = 0; // Strict non-clickable living room experience
+    clicks = 0;
   } else if (format === 'Video Mid-roll') {
-    clicks = 0; // Deep in content — no clickable overlay
+    clicks = 0;
   } else if (format === 'Video Pre-roll') {
-    clicks = jitter(impressions * 0.005, 0.15); // 0.5% CTR
+    clicks = jitter(impressions * 0.005, 0.15);
   } else if (format === 'Billboard') {
-    clicks = jitter(impressions * 0.001, 0.15); // 0.1% CTR
+    clicks = jitter(impressions * 0.001, 0.15);
   } else if (format === 'Display') {
-    clicks = jitter(impressions * 0.003, 0.15); // 0.3% CTR
+    clicks = jitter(impressions * 0.003, 0.15);
   } else {
-    clicks = jitter(impressions * 0.002, 0.15); // Fallback 0.2% CTR
+    clicks = jitter(impressions * 0.002, 0.15);
   }
 
+  const lineItemId = `LI-${idCounter++}`;
+  const spendTotal = jitter(budgetVal * (deliveryPct * 0.99), 0.01);
+
+  // Generate deterministic daily delivery time series
+  const dailyDelivery = generateDailyDelivery(
+    start, end, status, impressions, clicks, spendTotal, lineItemId
+  );
+
+  // Derive aggregate performance from daily sums (single source of truth)
+  const sumImps = dailyDelivery.reduce((s, d) => s + d.impressions, 0);
+  const sumClicks = dailyDelivery.reduce((s, d) => s + d.clicks, 0);
+  const sumSpend = dailyDelivery.reduce((s, d) => s + d.spend, 0);
+
   return {
-    id: `LI-${idCounter++}`,
+    id: lineItemId,
     campaign_id: campaignId,
     name: name,
     line_item_name: lineItemName,
@@ -242,11 +293,12 @@ const createLineItem = (agentId, campaignId, name, lineItemName, status, publish
       geography: targetParams.geography || (device === 'CTV' ? 'Metropolitan Cities' : 'Pan-India'),
       content: contentLabel
     },
+    daily_delivery: dailyDelivery,
     performance: {
-      impressions: impressions,
-      reach: Math.floor(impressions * 0.8),
-      clicks: clicks,
-      spend: jitter(budgetVal * (deliveryPct * 0.99), 0.01),
+      impressions: sumImps || impressions,
+      reach: Math.floor((sumImps || impressions) * 0.8),
+      clicks: sumClicks || clicks,
+      spend: sumSpend || spendTotal,
       roas: parseFloat(roas.toFixed(2)),
       is_underpacing: isUnderpacing
     },

@@ -313,13 +313,14 @@ body {
 
 .campaign-table {
   width: 100%;
+  min-width: 1500px;
   border-collapse: collapse;
   margin-top: 0.5rem;
 }
 
 .campaign-table th, 
 .campaign-table td {
-  padding: 1.25rem 1.5rem;
+  padding: 1rem 0.75rem;
   font-family: inherit;
   vertical-align: middle;
   border-bottom: 1px solid var(--border-light);

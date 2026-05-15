@@ -1403,32 +1403,19 @@ function App() {
                               if (!matches) return;
                             }
 
-                            const start = new Date(li.start_date);
-                            const end = new Date(li.end_date);
-                            const today = new Date('2026-05-10');
-                            const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
-
-                            for (let i = 0; i < days; i++) {
-                              const d = new Date(start);
-                              d.setDate(start.getDate() + i);
-                              if (d > today && li.status === 'active') continue;
-
-                              const jitterVal = 0.9 + (Math.random() * 0.2);
-                              const dailyImps = Math.floor((li.performance.impressions / (li.status === 'active' ? Math.min(days, 10) : days)) * jitterVal);
-                              const dailyClicks = Math.floor((li.performance.clicks / (li.status === 'active' ? Math.min(days, 10) : days)) * jitterVal);
-                              const dailySpend = (li.performance.spend / (li.status === 'active' ? Math.min(days, 10) : days)) * jitterVal;
-
+                            // Read from pre-computed daily delivery time series
+                            (li.daily_delivery || []).forEach(dd => {
                               log.push({
-                                date: d,
+                                date: new Date(dd.date),
                                 name: li.line_item_name,
                                 targeting: li.targeting,
                                 device: li.device,
                                 format: li.format,
-                                imps: dailyImps,
-                                clicks: dailyClicks,
-                                spend: dailySpend
+                                imps: dd.impressions,
+                                clicks: dd.clicks,
+                                spend: dd.spend
                               });
-                            }
+                            });
                           });
 
                           return log
@@ -1858,7 +1845,7 @@ function App() {
 
                           if (buys.length === 0) return (
                             <tr>
-                              <td colSpan="10" className="text-center" style={{ padding: '3rem', color: 'var(--text-muted)' }}>
+                              <td colSpan="14" className="text-center" style={{ padding: '3rem', color: 'var(--text-muted)' }}>
                                 No campaigns found in the selected period.
                               </td>
                             </tr>
@@ -1879,7 +1866,8 @@ function App() {
                                   gender: buy.targeting?.gender || "Both",
                                   age: buy.targeting?.age || "18+",
                                   geographies: new Set(),
-                                  devices: new Set()
+                                  devices: new Set(),
+                                  content: new Set()
                                 },
                                 publisher: new Set(),
                                 status: buy.status || 'Active',
@@ -1912,6 +1900,16 @@ function App() {
                               campaignGroups[cid].targeting.geographies.add(buy.targeting.geography);
                             }
                             if (buy.device) campaignGroups[cid].targeting.devices.add(buy.device);
+                            if (buy.targeting?.content) campaignGroups[cid].targeting.content.add(buy.targeting.content);
+                          });
+
+                          // Determine if each campaign is content-targeted
+                          Object.values(campaignGroups).forEach(cg => {
+                            if (cg.targeting.content.size === 1) {
+                              cg.targeting.contentTarget = Array.from(cg.targeting.content)[0];
+                            } else {
+                              cg.targeting.contentTarget = null;
+                            }
                           });
 
                           return Object.values(campaignGroups)
@@ -1948,7 +1946,7 @@ function App() {
                                   <td className="text-center" style={{ textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                                     {Array.from(campaign.publisher).join(' + ')}
                                   </td>
-                                  <td className="text-center" style={{ textAlign: 'center', minWidth: '180px', maxWidth: '240px' }}>
+                                  <td className="text-center" style={{ textAlign: 'center', minWidth: '180px' }}>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
                                       <div style={{ display: 'flex', gap: '6px', whiteSpace: 'nowrap' }}>
                                         <span style={{ background: 'rgba(59, 130, 246, 0.1)', color: 'var(--accent-blue)', padding: '2px 6px', borderRadius: '3px', fontSize: '0.65rem', fontWeight: 700 }}>
@@ -1962,12 +1960,17 @@ function App() {
                                             if (d === 'Connected TV') return 'CTV';
                                             if (d === 'Android') return 'AOS';
                                             return d;
-                                          }).join(' + ')}
+                                          }).join(' + ') || 'All'}
                                         </span>
                                       </div>
                                       <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', maxWidth: '180px', lineHeight: '1.2', whiteSpace: 'normal' }}>
-                                        {Array.from(campaign.targeting.geographies).join(' + ')}
+                                        {Array.from(campaign.targeting.geographies).join(' + ') || 'Pan-India'}
                                       </div>
+                                      {campaign.targeting.contentTarget && (
+                                        <div style={{ fontSize: '0.65rem', color: '#ec4899', maxWidth: '220px', lineHeight: '1.2', whiteSpace: 'normal' }}>
+                                          {campaign.targeting.contentTarget}
+                                        </div>
+                                      )}
                                     </div>
                                   </td>
                                   <td className="text-center" style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{formatShortDate(campaign.start_date)}</td>

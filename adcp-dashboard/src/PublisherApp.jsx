@@ -1828,32 +1828,19 @@ function PublisherApp() {
                       {(() => {
                         const log = [];
                         selectedCampaign.line_items.forEach(li => {
-                          const start = new Date(li.start_date);
-                          const end = new Date(li.end_date);
-                          const today = new Date(SYSTEM_DATE);
-                          const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
-
-                          for (let i = 0; i < days; i++) {
-                            const d = new Date(start);
-                            d.setDate(start.getDate() + i);
-                            if (d > today && li.status === 'active') continue;
-
-                            const jitterVal = 0.9 + (Math.random() * 0.2);
-                            const dailyImps = Math.floor((li.performance.impressions / (li.status === 'active' ? Math.min(days, 10) : days)) * jitterVal);
-                            const dailyClicks = Math.floor((li.performance.clicks / (li.status === 'active' ? Math.min(days, 10) : days)) * jitterVal);
-                            const dailySpend = (li.performance.spend / (li.status === 'active' ? Math.min(days, 10) : days)) * jitterVal;
-
+                          // Read from pre-computed daily delivery time series
+                          (li.daily_delivery || []).forEach(dd => {
                             log.push({
-                              date: d,
+                              date: new Date(dd.date),
                               name: li.line_item_name,
                               targeting: li.targeting,
                               device: li.device,
                               format: li.format,
-                              imps: dailyImps,
-                              clicks: dailyClicks,
-                              spend: dailySpend
+                              imps: dd.impressions,
+                              clicks: dd.clicks,
+                              spend: dd.spend
                             });
-                          }
+                          });
                         });
                         return log
                           .sort((a, b) => b.date - a.date)
