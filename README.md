@@ -2,14 +2,15 @@
 
 AdCP is a decentralized, end-to-end simulation of an autonomous advertising marketplace. It demonstrates how AI agents can replace traditional monolithic ad-serving systems to handle discovery, evaluation, and trading of media in real-time using the **Model Context Protocol (MCP)**.
 
-![AdCP Architecture](https://raw.githubusercontent.com/sdeshpa7/AdCP-Showcase/main/adcp-dashboard/public/preview.png) *(Note: Add actual screenshot to your repo later)*
+![AdCP Architecture](https://raw.githubusercontent.com/sdeshpa7/AdCP-Showcase/main/adcp-dashboard/public/preview.png)
 
 ## 🚀 Overview
 
 This project simulates a high-fidelity environment where **Advertiser Agents** (Buyers) and **Publisher Agents** (Sellers) negotiate and execute media buys without human intervention.
 
-- **Buyers** use **Gemma-2-27b-it** to evaluate publisher inventory against complex brand briefs.
-- **Sellers** use **Llama-3-70b (Groq)** to perform real-time brand safety validation and yield optimization.
+- **Buyers**: Use **Gemma-3-27b-it** (via Google Gemini) to evaluate publisher inventory against complex brand briefs.
+- **Sellers**: Use **Gemma-3** or **Grok (xAI)** to perform real-time brand safety validation and yield optimization.
+- **Persistence**: A centralized SQLite database (`adcp.db`) stores 3 years of historical transaction data, served via a dedicated **Transaction API**.
 
 ---
 
@@ -18,28 +19,23 @@ This project simulates a high-fidelity environment where **Advertiser Agents** (
 The system decomposes the monolithic ad-stack into specialized sub-agents to reduce context window bloat and improve reasoning accuracy.
 
 ### 🏢 Buyer Side (Demand-Side Platform)
-- **Orchestrator**: Routes requests and manages the campaign lifecycle.
-- **Discovery Agent**: Queries publishers for relevant inventory slots.
-- **Evaluation Agent**: Uses Gemma to score inventory against brand safety and performance criteria.
-- **Budget Agent**: Manages daily pacing and allocation across different line items.
-- **RTB Agent**: Handles bid submission and auction mechanics.
-- **Delivery Agent**: Monitors impressions and optimizes reach/frequency.
+- **Phase-Based Decoupling**: Separate discovery, evaluation, and allocation phases.
+- **Prompt-Aware Filtering**: Intent detection reduces token usage by 40% via pre-LLM inventory filtering.
+- **Intelligence Feed**: Real-time display of LLM reasoning during the "Negotiation" phase.
 
 ### 📰 Seller Side (Supply-Side Platform)
 - **Yield Orchestrator**: Manages incoming requests from buyer agents.
 - **Catalog Agent**: Maintains the product inventory and audience signals.
-- **Exchange Agent**: Dynamically sets floor prices based on demand intensity.
-- **Validation Agent**: Uses Llama-3 to assess brand safety and competitive conflicts.
-- **Performance Agent**: Generates simulated delivery reports (ROAS, CTR).
+- **Decoupled Transactions**: Media buys are stored in a persistent reference ledger, separate from agent tool logic.
 
 ---
 
 ## 🛠️ Tech Stack
 
-- **Backend**: Python 3.12+, FastAPI, MCP (Model Context Protocol).
-- **LLMs**: Google Gemini (Gemma-2) & Groq (Llama-3.3).
-- **Frontend**: React (Vite), Tailwind CSS, Lucide Icons.
-- **Protocols**: JSON-RPC 2.0 over Streamable HTTP.
+- **Backend**: Python 3.14, FastAPI, AdCP SDK (MCP v5+).
+- **LLMs**: Google Gemini (Gemma-3-27b-it).
+- **Database**: SQLite with a dedicated **FastAPI Transaction API** (Port 8010).
+- **Frontend**: React 19, Vite, Recharts, Vanilla CSS.
 
 ---
 
@@ -48,8 +44,7 @@ The system decomposes the monolithic ad-stack into specialized sub-agents to red
 ### 1. Prerequisites
 - Python 3.12+
 - Node.js 20+
-- [Google AI Studio Key](https://aistudio.google.com/) (for Gemma)
-- [Groq API Key](https://console.groq.com/) (for Llama)
+- [Google AI Studio Key](https://aistudio.google.com/)
 
 ### 2. Installation
 ```bash
@@ -73,42 +68,52 @@ Create a `.env` file in the root directory:
 # Protocol Auth
 ADCP_AUTH_TOKEN=your_random_secret_token
 
-# Buyer Config (Gemini/Gemma)
+# LLM Config
 GEMINI_API_KEY=your_google_ai_studio_key
-BUYER_LLM_MODEL=models/gemma-2-27b-it
-
-# Seller Config (Groq/Llama)
-XAI_API_KEY=your_groq_api_key
-SELLER_LLM_MODEL=llama-3.3-70b-versatile
+LLM_MODEL=gemma-3-27b-it
 ```
 
 ---
 
 ## 🎮 Running the Simulation
 
-### Step 1: Launch the Dashboard
+### Step 1: Launch the Multi-Agent Demo
 ```bash
-cd adcp-dashboard
-npm run dev
-```
-Navigate to `http://localhost:5173/publisher` to see the Seller side or `http://localhost:5173/advertiser` for the Buyer side.
-
-### Step 2: Start the Multi-Agent Demo
-In a new terminal:
-```bash
+# In the root directory
 python -m adcp_showcase.demo
 ```
-This script orchestrates 10 concurrent agents (5 Buyers, 5 Sellers) and begins the trading simulation.
+This orchestrates:
+1. **Database Seeding**: Populates `adcp.db` with historical transactions (if empty).
+2. **Transaction API**: Starts the background server on `:8010`.
+3. **Agent Servers**: Launches 5 Buyers (:8001-8005) and 5 Sellers (:9001-9005).
+4. **Campaign Execution**: Agents begin their autonomous workflow.
+
+### Step 2: Launch the Dashboards
+In two separate terminals:
+
+```bash
+# Terminal 1: Advertiser Portal
+cd adcp-dashboard
+npm run dev
+
+# Terminal 2: Publisher Portal
+cd adcp-dashboard
+npm run publisher
+```
+
+- **Advertiser Portal**: `http://localhost:5173/` (or the next available port)
+- **Publisher Portal**: `http://localhost:5174/` (or the next available port)
 
 ---
 
-## 📊 Live Intelligence Feeds
+## 📊 Core Features
 
-One of the core features of AdCP is the **Real-Time Reasoning Feed**.
-- **Live Feed Intelligence (Buyer)**: Watch the Evaluation Agent's thought process as it rejects or accepts ad slots.
-- **Live Yield Intelligence (Seller)**: See the Validation Agent perform LLM-based brand safety checks on incoming orders.
+- **Prompt-Aware Discovery**: Target "IPL Playoffs on JioHotstar" and watch the agent intelligently filter out irrelevant inventory.
+- **Direct-First Buying**: Defaults to Guaranteed Direct buys unless "Open Exchange" is explicitly requested in the prompt.
+- **Historical Analysis**: 3 years of persistent transaction data available in the dashboard charts, fetched from the SQLite backend.
+- **Decoupled Architecture**: Agents remain pure AdCP actors; persistence is handled by the Demo Orchestrator and Transaction API.
 
 ---
 
 ## 📄 License
-MIT License. Created as a portfolio project for MarTech & AdTech AI Engineering.
+MIT License. Created as a portfolio project for AdTech AI Engineering.

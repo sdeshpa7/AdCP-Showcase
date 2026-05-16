@@ -72,9 +72,9 @@ def display_banner() -> None:
     console.print()
 
 
-async def wait_for_agent(agent_id: str, port: int, timeout: float = 15.0) -> bool:
+async def wait_for_agent(agent_id: str, port: int, timeout: float = 60.0) -> bool:
     """Wait until an agent server is responding."""
-    url = f"http://localhost:{port}/mcp"
+    url = f"http://127.0.0.1:{port}/mcp"
     client = MCPClient(agent_url=url, auth_token="local")
     start = time.time()
 
@@ -92,7 +92,7 @@ async def wait_for_agent(agent_id: str, port: int, timeout: float = 15.0) -> boo
 
 async def configure_and_run_agent(agent_id: str, port: int, persona) -> dict:
     """Send set_campaign + run_campaign to a buyer agent."""
-    url = f"http://localhost:{port}/mcp"
+    url = f"http://127.0.0.1:{port}/mcp"
     client = MCPClient(agent_url=url, auth_token="local")
 
     try:
@@ -217,7 +217,34 @@ async def main() -> None:
     if not os.path.exists(python_path):
         python_path = sys.executable
 
-    # Step 1: Start all Seller agents (Publishers)
+    # Step 0: Determine paths
+    root_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    src_dir = os.path.join(root_dir, "src")
+    
+    env = os.environ.copy()
+    env["PYTHONPATH"] = src_dir + (os.pathsep + env["PYTHONPATH"] if "PYTHONPATH" in env else "")
+
+    # Step 0.1: Ensure Database is seeded
+    db_path = os.path.join(root_dir, "src", "adcp_showcase", "adcp.db")
+    if not os.path.exists(db_path):
+        console.print("[bold yellow]Database not found. Seeding historical transactions...[/bold yellow]")
+        subprocess.run([python_path, "-m", "adcp_showcase.scripts.seed_database"], check=True, env=env)
+    
+    # Step 1: Start Database API Server (Port 8010)
+    console.rule("[bold]Starting Database API (History Store)[/bold]")
+    api_cmd = [
+        python_path, "-m", "adcp_showcase.database_api"
+    ]
+    api_proc = subprocess.Popen(
+        api_cmd,
+        cwd=root_dir,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env=env,
+    )
+    console.print("  📡 Database API started on :8010 [green]started[/green]")
+
+    # Step 1.1: Start all Seller agents (Publishers)
     console.rule("[bold]Starting Seller Agents (Publishers)[/bold]")
     seller_processes: list[subprocess.Popen] = []
     
@@ -232,9 +259,10 @@ async def main() -> None:
         console.print(f"  📡 Starting {pub:<12s} on :{port}...", end="")
         proc = subprocess.Popen(
             cmd,
-            cwd=os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            cwd=root_dir,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            env=env,
         )
         seller_processes.append(proc)
         console.print(" [green]started[/green]")
@@ -257,15 +285,16 @@ async def main() -> None:
 
         proc = subprocess.Popen(
             cmd,
-            cwd=os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            cwd=root_dir,
             stdout=subprocess.DEVNULL if not args.verbose else None,
             stderr=subprocess.DEVNULL if not args.verbose else None,
+            env=env,
         )
         processes.append(proc)
         console.print(" [green]started[/green]")
 
     # Combine all processes for cleanup
-    all_processes = seller_processes + processes
+    all_processes = [api_proc] + seller_processes + processes
 
     # Step 2: Wait for all servers to be ready
     console.print("\n  ⏳ Waiting for servers to initialize...\n")
