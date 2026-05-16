@@ -227,7 +227,106 @@ export const makeHandoff = (fromKey, toKey, payloadTokens, desc) => ({
 
 // ── Main Generator ──────────────────────────────────────────────────────────
 
-export const generateBuyerFeed = (agentId, agentData) => {
+// ── Prompt Intent Parser ────────────────────────────────────────────────────
+// Extracts publisher targets, content keywords, and geo filters from the
+// user's natural-language campaign prompt. This is the first layer of
+// context engineering: we never send irrelevant inventory to the LLM.
+
+const PUBLISHER_ALIASES = {
+  'JioHotstar': ['jiohotstar', 'jio hotstar', 'hotstar', 'jiocinema', 'jio cinema'],
+  'ESPNcricinfo': ['espncricinfo', 'cricinfo', 'espn', 'cricinfo.com'],
+  'Myntra': ['myntra'],
+  'NDTV': ['ndtv'],
+  'Amazon.in': ['amazon', 'amazon.in', 'prime video'],
+};
+
+const CONTENT_KEYWORDS = {
+  'JioHotstar': ['ipl', 'cricket', 'bigg boss', 'premier league', 'epl', 'playoffs', 'sports', 'bollywood', 'hbo', 'streaming', 'ctv', 'live match', 'rcb', 'csk', 'mi', 'kkr', 'dc', 'srh', 'pbks', 'gt', 'lsg', 'rr', 'royal challengers', 'chennai super kings', 'mumbai indians', 'kolkata knight riders'],
+  'ESPNcricinfo': ['cricket', 'ipl', 'scores', 'highlights', 'cricket news', 'sports news', 'commentary'],
+  'Myntra': ['fashion', 'clothing', 'beauty', 'lifestyle', 'apparel', 'shopping'],
+  'NDTV': ['news', 'politics', 'business', 'technology', 'current affairs'],
+  'Amazon.in': ['amazon', 'prime', 'e-commerce', 'shopping', 'deals', 'prime day', 'great indian'],
+};
+
+const GEO_KEYWORDS = {
+  south: ['south', 'southern', 'karnataka', 'tamil nadu', 'kerala', 'andhra', 'telangana', 'bangalore', 'bengaluru', 'chennai', 'hyderabad', 'kochi', 'rcb', 'csk', 'royal challengers', 'chennai super kings'],
+  north: ['north', 'northern', 'delhi', 'up', 'haryana', 'punjab', 'rajasthan', 'lucknow', 'jaipur'],
+  west: ['west', 'western', 'mumbai', 'maharashtra', 'gujarat', 'pune', 'ahmedabad', 'mi', 'mumbai indians'],
+  east: ['east', 'eastern', 'kolkata', 'bengal', 'odisha', 'kkr', 'kolkata knight riders'],
+};
+
+export const parsePromptIntent = (promptText) => {
+  if (!promptText || promptText.trim().length === 0) {
+    return { targetedPublishers: [], contentKeywords: [], geoTargets: [], hasSpecificTarget: false };
+  }
+
+  const lower = promptText.toLowerCase();
+
+  // 1. Find explicitly mentioned publishers
+  const targetedPublishers = [];
+  for (const [pubName, aliases] of Object.entries(PUBLISHER_ALIASES)) {
+    if (aliases.some(alias => lower.includes(alias))) {
+      targetedPublishers.push(pubName);
+    }
+  }
+
+  // 2. Find content keywords that map to publishers
+  const contentMatches = {};
+  for (const [pubName, keywords] of Object.entries(CONTENT_KEYWORDS)) {
+    const matched = keywords.filter(kw => lower.includes(kw));
+    if (matched.length > 0) {
+      contentMatches[pubName] = matched;
+    }
+  }
+
+  // 3. Find geo targets
+  const geoTargets = [];
+  for (const [region, keywords] of Object.entries(GEO_KEYWORDS)) {
+    if (keywords.some(kw => lower.includes(kw))) {
+      geoTargets.push(region);
+    }
+  }
+
+  // 4. Check for "open exchange" / "all publishers" intent
+  const isOpenExchange = lower.includes('open exchange') || lower.includes('all publishers') || lower.includes('all available');
+
+  // 5. Determine if there's a specific targeting intent
+  const hasSpecificTarget = targetedPublishers.length > 0 && !isOpenExchange;
+
+  // 6. If specific publishers mentioned, use only those.
+  //    If no publisher mentioned but content keywords match, use content-matched publishers.
+  //    If open exchange, use all.
+  let resolvedPublishers = [];
+  if (isOpenExchange) {
+    resolvedPublishers = []; // empty = all
+  } else if (targetedPublishers.length > 0) {
+    resolvedPublishers = [...targetedPublishers];
+    // Also add publishers strongly implied by content keywords
+    // but ONLY if the prompt doesn't say "specifically" or "only" for one publisher
+    const isExclusive = lower.includes('specifically') || lower.includes('only on') || lower.includes('exclusively');
+    if (!isExclusive) {
+      for (const [pub, matched] of Object.entries(contentMatches)) {
+        if (!resolvedPublishers.includes(pub) && matched.length >= 2) {
+          resolvedPublishers.push(pub);
+        }
+      }
+    }
+  } else if (Object.keys(contentMatches).length > 0) {
+    resolvedPublishers = Object.keys(contentMatches);
+  }
+
+  return {
+    targetedPublishers: resolvedPublishers,
+    contentKeywords: Object.values(contentMatches).flat(),
+    contentMatches,
+    geoTargets,
+    hasSpecificTarget,
+    isOpenExchange,
+    rawPrompt: promptText,
+  };
+};
+
+export const generateBuyerFeed = (agentId, agentData, campaignPrompt = '') => {
   const profile = STRATEGY_NOTES[agentId];
   if (!profile) return [];
 
@@ -244,6 +343,9 @@ export const generateBuyerFeed = (agentId, agentData) => {
 
   // Track total monolithic window size for comparison
   const monoWindow = 9700; // tokens if single agent held everything
+
+  // ── Parse Prompt Intent ───────────────────────────────────────────
+  const promptIntent = parsePromptIntent(campaignPrompt);
 
   // ── Orchestrator Lane ─────────────────────────────────────────────
   events.push(makeLane('orchestrator', 320, monoWindow, ['agent_config', 'seller_registry']));
@@ -262,10 +364,16 @@ export const generateBuyerFeed = (agentId, agentData) => {
       system_prompt_tokens: 280 + Math.floor(rand() * 40),
       persona: {
         brand: agentData?.brand || agentId,
-        brief: profile.brief.substring(0, 80) + '...',
+        brief: campaignPrompt || profile.brief.substring(0, 80) + '...',
         channels: profile.channels,
         strategy: profile.strategy.substring(0, 60) + '...',
       },
+      prompt_intent: promptIntent.hasSpecificTarget || promptIntent.isOpenExchange ? {
+        targeted_publishers: promptIntent.targetedPublishers.length > 0 ? promptIntent.targetedPublishers : 'ALL (Open Exchange)',
+        content_keywords: promptIntent.contentKeywords,
+        geo_targets: promptIntent.geoTargets.length > 0 ? promptIntent.geoTargets : 'nationwide',
+        mode: promptIntent.isOpenExchange ? 'Open Exchange' : 'Targeted',
+      } : undefined,
       sub_agents: Object.values(BUYER_AGENTS).map(a => `${a.icon} ${a.name} (${a.usesLLM ? 'LLM' : 'Deterministic'})`),
       llm: { model: "gemma-3-27b-it", temperature: 0.3, max_output_tokens: 2048 },
     },
@@ -280,7 +388,55 @@ export const generateBuyerFeed = (agentId, agentData) => {
   events.push(makeLane('discovery', 1240, monoWindow, ['campaign_brief', 'seller_urls', 'exclusion_list']));
 
   // ── Phase 1: Discovery (Discovery Agent) ──────────────────────────
-  const queriedPublishers = PUBLISHERS.filter(p => !profile.excludes.includes(p));
+
+  // Apply competitive exclusion first
+  let queriedPublishers = PUBLISHERS.filter(p => !profile.excludes.includes(p));
+
+  // Apply prompt-intent filtering: restrict to targeted publishers
+  let promptExcludedPubs = [];
+  if (promptIntent.targetedPublishers.length > 0) {
+    promptExcludedPubs = queriedPublishers.filter(p => !promptIntent.targetedPublishers.includes(p));
+    queriedPublishers = queriedPublishers.filter(p => promptIntent.targetedPublishers.includes(p));
+  }
+
+  // Show prompt-intent filtering event
+  if (promptExcludedPubs.length > 0) {
+    const totalSkippedSlots = promptExcludedPubs.reduce((sum, p) => sum + (PUBLISHER_SLOTS[p]?.length || 0), 0);
+    events.push({
+      timestamp: addMinutes(0.5),
+      phase: 'discover',
+      phaseLabel: 'Prompt-Intent Filtering',
+      toolName: null,
+      icon: '🎯',
+      title: `Prompt targets ${queriedPublishers.join(', ')} — skipping ${promptExcludedPubs.join(', ')} (${totalSkippedSlots} slots excluded)`,
+      details: {
+        prompt_analysis: {
+          raw_prompt: campaignPrompt.substring(0, 200),
+          detected_publishers: promptIntent.targetedPublishers,
+          detected_keywords: promptIntent.contentKeywords.slice(0, 10),
+          detected_geo: promptIntent.geoTargets,
+        },
+        included_publishers: queriedPublishers.map(p => ({
+          name: p,
+          reason: `Explicitly mentioned in prompt or strongly implied by content keywords`,
+          slots: PUBLISHER_SLOTS[p]?.length || 0,
+        })),
+        excluded_publishers: promptExcludedPubs.map(p => ({
+          name: p,
+          reason: `Not mentioned in campaign prompt — no relevance signal detected`,
+          slots_saved: PUBLISHER_SLOTS[p]?.length || 0,
+        })),
+      },
+      contextEngineering: [{
+        strategy: 'Prompt-Intent Filtering',
+        description: `${promptExcludedPubs.length} publishers excluded based on campaign prompt analysis. ${totalSkippedSlots} product slots never enter the context window.`,
+        tokensSaved: totalSkippedSlots * 190,
+        detail: `Publishers [${promptExcludedPubs.join(', ')}] have no semantic overlap with the campaign prompt. Their ${totalSkippedSlots} inventory slots are excluded before any MCP call, saving ~${totalSkippedSlots * 190} tokens.`,
+      }],
+      tokenUsage: null,
+    });
+  }
+
   let allDiscoveredSlots = [];
   let totalDiscoveryTokens = 0;
 
@@ -302,7 +458,7 @@ export const generateBuyerFeed = (agentId, agentData) => {
           params: {
             name: "get_products",
             arguments: {
-              brief: profile.brief,
+              brief: campaignPrompt || profile.brief,
               brand: { domain: agentData?.domain || `${agentId}.com` },
             },
           },
@@ -533,9 +689,15 @@ export const generateBuyerFeed = (agentId, agentData) => {
     tokenUsage: null,
   });
 
-  // Assign buy_type to each allocation: ~20% are Open Exchange (RTB), rest are Direct Buy
+  // Assign buy_type: default to Direct Buy unless user explicitly requests Open Exchange
   allocations.forEach((alloc, idx) => {
-    alloc.buy_type = (idx % 3 === 0) ? 'exchange' : 'direct';
+    if (promptIntent.isOpenExchange) {
+      // Open Exchange mode: all allocations go through RTB
+      alloc.buy_type = 'exchange';
+    } else {
+      // Default: all Direct Buy (guaranteed inventory)
+      alloc.buy_type = 'direct';
+    }
   });
 
   const directAllocations = allocations.filter(a => a.buy_type === 'direct');
@@ -744,8 +906,8 @@ export const generateBuyerFeed = (agentId, agentData) => {
 
   const totalTokens = totalEvalTokens + summaryTotalTokens;
   const totalCost = evalCost + summaryCost;
-  const totalTokensSaved = events.filter(e => e.type !== 'lane-start' && e.type !== 'handoff').reduce((sum, e) =>
-    sum + (e.contextEngineering || []).reduce((s, ce) => s + (ce.tokensSaved || 0), 0), 0);
+  const totalTokensSaved = events.filter(e => e && e.type !== 'lane-start' && e && e.type !== 'handoff').reduce((sum, e) =>
+    sum + (e?.contextEngineering || []).reduce((s, ce) => s + (ce?.tokensSaved || 0), 0), 0);
 
   events.push({
     timestamp: addMinutes(5),

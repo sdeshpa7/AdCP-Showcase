@@ -10,7 +10,7 @@ import {
   STRATEGY_NOTES, PUBLISHER_SLOTS, SELLER_PORTS,
   BUYER_AGENTS, makeLane, makeHandoff,
   CE_PHASE_DECOUPLING, CE_PRE_LLM_FILTERING, CE_STRUCTURED_PROMPTING,
-  seededRandom, hashString,
+  seededRandom, hashString, parsePromptIntent,
 } from './useIntelligenceFeed';
 
 // ── Forecast Agent Definition ───────────────────────────────────────────────
@@ -61,7 +61,7 @@ const inferFormat = (slotId) => {
 };
 
 // ── Main Forecast Generator ─────────────────────────────────────────────────
-export const generateForecastFeed = (agentId, agentData) => {
+export const generateForecastFeed = (agentId, agentData, campaignPrompt = '') => {
   const profile = STRATEGY_NOTES[agentId];
   if (!profile) return [];
 
@@ -77,6 +77,9 @@ export const generateForecastFeed = (agentId, agentData) => {
   };
 
   const monoWindow = 9700;
+
+  // ── Parse Prompt Intent ───────────────────────────────────────────
+  const promptIntent = parsePromptIntent(campaignPrompt);
 
   // ── Orchestrator Lane ─────────────────────────────────────────────────
   events.push(makeLane('orchestrator', 320, monoWindow, ['agent_config', 'seller_registry']));
@@ -95,6 +98,11 @@ export const generateForecastFeed = (agentId, agentData) => {
       sub_agents: ['🎯 Orchestrator', '🔍 Discovery Agent', '🧠 Evaluation Agent', '🔮 Forecast Agent'],
       skipped_agents: ['💰 Budget Agent (no allocation)', '📊 Delivery Agent (no buy execution)'],
       side_effects: 'NONE — no create_media_buy calls will be made',
+      prompt_intent: promptIntent.hasSpecificTarget || promptIntent.isOpenExchange ? {
+        targeted_publishers: promptIntent.targetedPublishers.length > 0 ? promptIntent.targetedPublishers : 'ALL (Open Exchange)',
+        content_keywords: promptIntent.contentKeywords,
+        geo_targets: promptIntent.geoTargets.length > 0 ? promptIntent.geoTargets : 'nationwide',
+      } : undefined,
     },
     contextEngineering: [],
     tokenUsage: null,
@@ -105,7 +113,41 @@ export const generateForecastFeed = (agentId, agentData) => {
   events.push(makeLane('discovery', 1240, monoWindow, ['campaign_brief', 'seller_urls', 'exclusion_list']));
 
   // ── Phase 1: Discovery ────────────────────────────────────────────────
-  const queriedPublishers = PUBLISHERS.filter(p => !profile.excludes.includes(p));
+  // Apply competitive exclusion first
+  let queriedPublishers = PUBLISHERS.filter(p => !profile.excludes.includes(p));
+
+  // Apply prompt-intent filtering
+  let promptExcludedPubs = [];
+  if (promptIntent.targetedPublishers.length > 0) {
+    promptExcludedPubs = queriedPublishers.filter(p => !promptIntent.targetedPublishers.includes(p));
+    queriedPublishers = queriedPublishers.filter(p => promptIntent.targetedPublishers.includes(p));
+  }
+
+  // Show prompt-intent filtering event
+  if (promptExcludedPubs.length > 0) {
+    const totalSkippedSlots = promptExcludedPubs.reduce((sum, p) => sum + (PUBLISHER_SLOTS[p]?.length || 0), 0);
+    events.push({
+      timestamp: addMinutes(0.5),
+      phase: 'discover',
+      phaseLabel: 'Prompt-Intent Filtering',
+      agentName: 'Discovery Agent',
+      agentColor: '#3b82f6',
+      toolName: null,
+      icon: '🎯',
+      title: `Prompt targets ${queriedPublishers.join(', ')} — skipping ${promptExcludedPubs.join(', ')} (${totalSkippedSlots} slots excluded)`,
+      details: {
+        included: queriedPublishers,
+        excluded: promptExcludedPubs.map(p => ({ name: p, reason: 'Not mentioned in campaign prompt' })),
+      },
+      contextEngineering: [{
+        strategy: 'Prompt-Intent Filtering',
+        description: `${promptExcludedPubs.length} publishers excluded. ${totalSkippedSlots} slots never enter context.`,
+        tokensSaved: totalSkippedSlots * 190,
+      }],
+      tokenUsage: null,
+    });
+  }
+
   let allDiscoveredSlots = [];
 
   queriedPublishers.forEach((pub, idx) => {
@@ -337,8 +379,8 @@ export const generateForecastFeed = (agentId, agentData) => {
   });
 
   // ── Summary Table ─────────────────────────────────────────────────────
-  const totalTokensSaved = events.filter(e => !e.type).reduce((sum, e) =>
-    sum + (e.contextEngineering || []).reduce((s, ce) => s + (ce.tokensSaved || 0), 0), 0);
+  const totalTokensSaved = events.filter(e => e && !e.type).reduce((sum, e) =>
+    sum + (e?.contextEngineering || []).reduce((s, ce) => s + (ce?.tokensSaved || 0), 0), 0);
 
   events.push({
     type: 'summary-table',

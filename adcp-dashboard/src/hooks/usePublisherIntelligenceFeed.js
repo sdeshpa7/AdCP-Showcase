@@ -464,13 +464,13 @@ export const generateSellerFeed = (publisherId, publisherData) => {
   });
 
   // ── Platform Summary ──────────────────────────────────────────────────
-  const totalTokensSaved = events.filter(e => e.type !== 'lane-start' && e.type !== 'handoff').reduce((sum, e) =>
-    sum + (e.contextEngineering || []).reduce((s, ce) => s + (ce.tokensSaved || 0), 0), 0);
-  const totalLLMTokens = events.filter(e => e.type !== 'lane-start' && e.type !== 'handoff').reduce((sum, e) =>
-    sum + (e.tokenUsage?.total || 0), 0);
-  const totalLLMCost = events.filter(e => e.type !== 'lane-start' && e.type !== 'handoff').reduce((sum, e) =>
-    sum + (e.tokenUsage?.costINR || 0), 0);
-  const llmCallCount = events.filter(e => e.tokenUsage && e.type !== 'lane-start' && e.type !== 'handoff').length;
+  const totalTokensSaved = events.filter(e => e && e.type !== 'lane-start' && e.type !== 'handoff').reduce((sum, e) =>
+    sum + (e?.contextEngineering || []).reduce((s, ce) => s + (ce?.tokensSaved || 0), 0), 0);
+  const totalLLMTokens = events.filter(e => e && e.type !== 'lane-start' && e.type !== 'handoff').reduce((sum, e) =>
+    sum + (e?.tokenUsage?.total || 0), 0);
+  const totalLLMCost = events.filter(e => e && e.type !== 'lane-start' && e.type !== 'handoff').reduce((sum, e) =>
+    sum + (e?.tokenUsage?.costINR || 0), 0);
+  const llmCallCount = events.filter(e => e && e.tokenUsage && e.type !== 'lane-start' && e.type !== 'handoff').length;
 
   events.push({
     timestamp: addMinutes(5),

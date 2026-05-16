@@ -551,13 +551,13 @@ function PublisherApp() {
             {/* ── Seller Agent Intelligence Feed (appears after Get Campaign) ── */}
             {(simulationEvents.length > 0 || isSimulating) && (() => {
               const visibleEvents = simulationEvents;
-              const totalTokensSaved = visibleEvents.reduce((s, e) => s + (e.contextEngineering || []).reduce((ss, ce) => ss + (ce.tokensSaved || 0), 0), 0);
-              const buyersServed = visibleEvents.filter(e => e.phase === 'serve').length;
-              const buysAccepted = visibleEvents.filter(e => e.phase === 'accept').length;
+              const totalTokensSaved = visibleEvents.reduce((s, e) => s + (e?.contextEngineering || []).reduce((ss, ce) => ss + (ce?.tokensSaved || 0), 0), 0);
+              const buyersServed = visibleEvents.filter(e => e?.phase === 'serve').length;
+              const buysAccepted = visibleEvents.filter(e => e?.phase === 'accept').length;
               const totalEvents = allFeedEvents.length;
               
-              const totalLLMTokens = visibleEvents.reduce((s, e) => s + (e.tokenUsage?.total || 0), 0);
-              const totalLLMCost = visibleEvents.reduce((s, e) => s + (e.tokenUsage?.costINR || 0), 0);
+              const totalLLMTokens = visibleEvents.reduce((s, e) => s + (e?.tokenUsage?.total || 0), 0);
+              const totalLLMCost = visibleEvents.reduce((s, e) => s + (e?.tokenUsage?.costINR || 0), 0);
               
               return (
                 <div className="intelligence-feed" style={{ marginTop: '2rem' }}>
@@ -590,6 +590,7 @@ function PublisherApp() {
 
                   <div className="feed-timeline" ref={feedTimelineRef}>
                     {visibleEvents.map((evt, idx) => {
+                      if (!evt) return null;
                       if (evt.type === 'lane-start') {
                         const cw = evt.contextWindow;
                         const isExp = expandedFeedEvent === idx;
@@ -669,13 +670,13 @@ function PublisherApp() {
                                 </div>
                               )}
 
-                              {evt.tokenUsage && (
+                              {evt?.tokenUsage && (
                                 <div className="feed-token-bar-container">
-                                  <span className="feed-token-label">{evt.tokenUsage.total.toLocaleString()} tokens</span>
+                                  <span className="feed-token-label">{(evt?.tokenUsage?.total || 0).toLocaleString()} tokens</span>
                                   <div className="feed-token-bar">
-                                    <div className="feed-token-bar-fill" style={{ width: `${Math.min((evt.tokenUsage.total / 5000) * 100, 100)}%` }} />
+                                    <div className="feed-token-bar-fill" style={{ width: `${Math.min(((evt?.tokenUsage?.total || 0) / 5000) * 100, 100)}%` }} />
                                   </div>
-                                  <span className="feed-token-cost">₹{evt.tokenUsage.costINR.toFixed(3)}</span>
+                                  <span className="feed-token-cost">₹{(evt?.tokenUsage?.costINR || 0).toFixed(3)}</span>
                                 </div>
                               )}
                             </div>
@@ -820,6 +821,7 @@ function PublisherApp() {
                                 </div>
                                 <div className="feed-timeline" style={{ maxHeight: '400px' }}>
                                   {historyFeed.map((evt, idx) => {
+                                    if (!evt) return null;
                                     const isExp = expandedHistoryEvent === idx;
                                     if (evt.type === 'lane-start') {
                                       const cw = evt.contextWindow;

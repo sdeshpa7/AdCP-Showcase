@@ -495,7 +495,7 @@ function App() {
                         onClick={() => {
                           if (isSimulating) return;
                           setForecastMode(true);
-                          const events = generateForecastFeed(activeAgentId, activeData);
+                          const events = generateForecastFeed(activeAgentId, activeData, campaignPrompt);
                           setAllFeedEvents(events);
                           setSimulationEvents([]);
                           setExpandedFeedEvent(null);
@@ -531,7 +531,7 @@ function App() {
                           }
                           if (isSimulating) return;
                           setForecastMode(false);
-                          const events = generateBuyerFeed(activeAgentId, activeData);
+                          const events = generateBuyerFeed(activeAgentId, activeData, campaignPrompt);
                           setAllFeedEvents(events);
                           setSimulationEvents([]);
                           setExpandedFeedEvent(null);
@@ -609,9 +609,9 @@ function App() {
             {/* ── Agent Intelligence Feed (appears after Deploy) ── */}
             {(simulationEvents.length > 0 || isSimulating) && (() => {
               const visibleEvents = simulationEvents;
-              const totalTokens = visibleEvents.reduce((s, e) => s + (e.tokenUsage?.total || 0), 0);
-              const totalSaved = visibleEvents.reduce((s, e) => s + (e.contextEngineering || []).reduce((ss, ce) => ss + (ce.tokensSaved || 0), 0), 0);
-              const totalCost = visibleEvents.reduce((s, e) => s + (e.tokenUsage?.costINR || 0), 0);
+              const totalTokens = visibleEvents.reduce((s, e) => s + (e?.tokenUsage?.total || 0), 0);
+              const totalSaved = visibleEvents.reduce((s, e) => s + (e?.contextEngineering || []).reduce((ss, ce) => ss + (ce?.tokensSaved || 0), 0), 0);
+              const totalCost = visibleEvents.reduce((s, e) => s + (e?.tokenUsage?.costINR || 0), 0);
               const totalEvents = allFeedEvents.length;
               
               return (
@@ -639,6 +639,7 @@ function App() {
 
                   <div className="feed-timeline" ref={feedTimelineRef}>
                     {visibleEvents.map((evt, idx) => {
+                      if (!evt) return null;
                       // Lane-start event
                       if (evt.type === 'lane-start') {
                         const cw = evt.contextWindow;
@@ -774,13 +775,13 @@ function App() {
                                 </div>
                               )}
 
-                              {evt.tokenUsage && (
+                              {evt?.tokenUsage && (
                                 <div className="feed-token-bar-container">
-                                  <span className="feed-token-label">{evt.tokenUsage.total.toLocaleString()} tokens</span>
+                                  <span className="feed-token-label">{(evt?.tokenUsage?.total || 0).toLocaleString()} tokens</span>
                                   <div className="feed-token-bar">
-                                    <div className="feed-token-bar-fill" style={{ width: `${Math.min((evt.tokenUsage.total / 5000) * 100, 100)}%` }} />
+                                    <div className="feed-token-bar-fill" style={{ width: `${Math.min(((evt?.tokenUsage?.total || 0) / 5000) * 100, 100)}%` }} />
                                   </div>
-                                  <span className="feed-token-cost">₹{evt.tokenUsage.costINR.toFixed(3)}</span>
+                                  <span className="feed-token-cost">₹{(evt?.tokenUsage?.costINR || 0).toFixed(3)}</span>
                                 </div>
                               )}
                             </div>
@@ -922,12 +923,13 @@ function App() {
                                       Events: <span className="feed-stat-value">{historyFeed.length}</span>
                                     </div>
                                     <div className="feed-stat">
-                                      Tokens: <span className="feed-stat-value">{historyFeed.reduce((s, e) => s + (e.tokenUsage?.total || 0), 0).toLocaleString()}</span>
+                                      Tokens: <span className="feed-stat-value">{historyFeed.reduce((s, e) => s + (e?.tokenUsage?.total || 0), 0).toLocaleString()}</span>
                                     </div>
                                   </div>
                                 </div>
                                 <div className="feed-timeline" style={{ maxHeight: '400px' }}>
                                   {historyFeed.map((evt, idx) => {
+                                    if (!evt) return null;
                                     const isExp = expandedHistoryEvent === idx;
                                     if (evt.type === 'lane-start') {
                                       const cw = evt.contextWindow;
