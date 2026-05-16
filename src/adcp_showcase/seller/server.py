@@ -556,17 +556,24 @@ def main() -> None:
     publisher = get_publisher(args.publisher)
     port = args.port or PORT_MAP.get(args.publisher, 9001)
 
-    # Initialize Grok (xAI) LLM client
+    # Initialize LLM client (xAI or Groq)
     xai_api_key = os.getenv("XAI_API_KEY")
-    llm_model = args.model or os.getenv("SELLER_LLM_MODEL", "grok-3-mini")
+    llm_model = args.model or os.getenv("SELLER_LLM_MODEL", "grok-3")
     llm_client = None
 
     if xai_api_key:
+        # Detect if it's a Groq key (starts with gsk_) or xAI key
+        base_url = "https://api.x.ai/v1"
+        provider = "xAI"
+        if xai_api_key.startswith("gsk_"):
+            base_url = "https://api.groq.com/openai/v1"
+            provider = "Groq"
+        
         llm_client = OpenAI(
             api_key=xai_api_key,
-            base_url="https://api.x.ai/v1",
+            base_url=base_url,
         )
-        logger.info("Grok LLM initialized: model=%s", llm_model)
+        logger.info("%s LLM initialized: model=%s", provider, llm_model)
     else:
         logger.warning("XAI_API_KEY not set — seller will run without LLM brand safety checks")
 
@@ -578,7 +585,12 @@ def main() -> None:
 
     total_slots = sum(len(p.slots) for p in publisher.properties)
     cpms = [s.floor_cpm for p in publisher.properties for s in p.slots]
-    llm_status = f"grok-3-mini (xAI)" if llm_client else "No LLM"
+    
+    if llm_client:
+        provider = "Groq" if xai_api_key.startswith("gsk_") else "xAI"
+        llm_status = f"{llm_model} ({provider})"
+    else:
+        llm_status = "No LLM"
 
     print(f"╔══════════════════════════════════════════════════════════╗")
     print(f"║  📰 {publisher.publisher_name:<20s} Seller Agent             ║")

@@ -46,11 +46,12 @@ const hashString = (str) => {
 };
 // ── Sub-Agent Definitions (Seller Side) ──────────────────────────────────────
 const SELLER_AGENTS = {
-  orchestrator: { name: 'Seller Orchestrator', icon: '🏢', color: '#f59e0b', usesLLM: true, model: 'grok-3-mini' },
-  catalog:      { name: 'Catalog Agent', icon: '📦', color: '#3b82f6', usesLLM: true, model: 'grok-3-mini' },
-  exchange:     { name: 'Exchange Agent', icon: '⚡', color: '#ef4444', usesLLM: true, model: 'grok-3-mini' },
-  validation:   { name: 'Validation Agent', icon: '✅', color: '#f97316', usesLLM: true, model: 'grok-3-mini' },
-  delivery:     { name: 'Delivery Agent', icon: '📊', color: '#10b981', usesLLM: true, model: 'grok-3-mini' },
+  orchestrator: { name: 'Orchestrator', icon: '🎯', color: '#f59e0b', usesLLM: true, model: 'gemma-2-27b-it' },
+  discovery:    { name: 'Discovery Agent', icon: '🔍', color: '#3b82f6', usesLLM: true, model: 'gemma-2-27b-it' },
+  evaluation:   { name: 'Evaluation Agent', icon: '🧠', color: '#8b5cf6', usesLLM: true, model: 'gemma-2-27b-it' },
+  budget:       { name: 'Budget Agent', icon: '💰', color: '#f97316', usesLLM: true, model: 'gemma-2-27b-it' },
+  rtb:          { name: 'RTB Agent', icon: '⚡', color: '#ef4444', usesLLM: true, model: 'gemma-2-27b-it' },
+  delivery:     { name: 'Delivery Agent', icon: '📊', color: '#10b981', usesLLM: true, model: 'gemma-2-27b-it' },
 };
 
 const makeSellerLane = (agentKey, contextTokens, monoTokens, contents) => ({
@@ -61,8 +62,8 @@ const makeSellerLane = (agentKey, contextTokens, monoTokens, contents) => ({
     agent_id: agentKey,
     agent_name: SELLER_AGENTS[agentKey].name,
     uses_llm: true,
-    llm_model: 'grok-3-mini',
-    llm_provider: 'xAI',
+    llm_model: 'llama-3.3-70b',
+    llm_provider: 'Groq',
     context_window: {
       allocated_tokens: contextTokens,
       monolithic_equivalent: monoTokens,
@@ -148,7 +149,7 @@ export const generateSellerFeed = (publisherId, publisherData) => {
     phaseLabel: 'Server Initialization',
     toolName: null,
     icon: '📡',
-    title: `${meta.name} Seller Agent initialized on :${meta.port} — LLM: grok-3-mini (xAI)`,
+    title: `${meta.name} Seller Agent initialized on :${meta.port} — LLM: llama-3.3-70b (Groq)`,
     details: {
       server: {
         publisher: meta.name,
@@ -158,7 +159,7 @@ export const generateSellerFeed = (publisherId, publisherData) => {
         category: meta.category,
         transport: "AdCP SDK (adcp.server.ADCPHandler)",
         protocol: "JSON-RPC 2.0 over Streamable HTTP",
-        llm: { model: "grok-3-mini", provider: "xAI", api: "OpenAI-compatible" },
+        llm: { model: "llama-3.3-70b", provider: "Groq", api: "OpenAI-compatible" },
       },
       capabilities: {
         modes: ["get_products", "create_media_buy", "get_media_buy_delivery", "get_dashboard"],
@@ -294,8 +295,8 @@ export const generateSellerFeed = (publisherId, publisherData) => {
     agentColor: '#ef4444',
     details: {
       llm_call: {
-        model: "grok-3-mini",
-        provider: "xAI",
+        model: "llama-3.3-70b",
+        provider: "Groq",
         temperature: 0.2,
         system_prompt: "Analyze buyer demand and set optimal floor prices to maximize yield.",
       },
@@ -357,8 +358,8 @@ export const generateSellerFeed = (publisherId, publisherData) => {
           }],
         },
         llm_brand_safety: {
-          model: "grok-3-mini",
-          provider: "xAI",
+          model: "llama-3.3-70b",
+          provider: "Groq",
           query: `Is ${buyer.brand} (${buyer.domain}) a brand-safe fit for ${meta.name} (${meta.category})?`,
           verdict: "SAFE",
           reasoning: `${buyer.brand} operates in a non-competing vertical. No content conflicts with ${meta.category} publisher content. Brand reputation: Clean.`,
@@ -485,14 +486,14 @@ export const generateSellerFeed = (publisherId, publisherData) => {
         buyers_queried: incomingBuyers.length,
         buyers_excluded: excludedBuyers.length,
         buys_accepted: buyerOrder.length,
-        llm_model: "grok-3-mini",
-        llm_provider: "xAI",
+        llm_model: "llama-3.3-70b",
+        llm_provider: "Groq",
         llm_calls: llmCallCount,
         llm_tokens: totalLLMTokens,
         llm_cost: `\u20b9${totalLLMCost.toFixed(2)}`,
         total_tokens_saved: totalTokensSaved.toLocaleString(),
       },
-      architecture_note: "5 seller sub-agents powered by grok-3-mini (xAI). Each agent has targeted LLM calls for its domain: brand safety, floor pricing, catalog ranking, and pacing analysis.",
+      architecture_note: "5 seller sub-agents powered by llama-3.3-70b (Groq). Each agent has targeted LLM calls for its domain: brand safety, floor pricing, catalog ranking, and pacing analysis.",
     },
     contextEngineering: [],
     tokenUsage: null,
@@ -502,7 +503,7 @@ export const generateSellerFeed = (publisherId, publisherData) => {
   events.push({
     type: 'summary-table',
     rows: [
-      { metric: 'LLM Model', mono: 'N/A', multi: 'grok-3-mini (xAI)', savings: 'Specialized per agent' },
+      { metric: 'LLM Model', mono: 'N/A', multi: 'llama-3.3-70b (Groq)', savings: 'Specialized per agent' },
       { metric: 'LLM Calls', mono: `${llmCallCount} (single model)`, multi: `${llmCallCount} (5 agents)`, savings: 'Isolated context per call' },
       { metric: 'Total Tokens', mono: `${(totalLLMTokens * 3.2).toLocaleString()} tok`, multi: `${totalLLMTokens.toLocaleString()} tok`, savings: `${Math.round((1 - totalLLMTokens / (totalLLMTokens * 3.2)) * 100)}% reduction` },
       { metric: 'Sub-Agents', mono: '1 monolithic', multi: '5 specialized', savings: 'Isolated context' },

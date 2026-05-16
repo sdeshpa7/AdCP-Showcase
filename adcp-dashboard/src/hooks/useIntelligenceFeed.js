@@ -140,12 +140,12 @@ export const CE_STATE_SUMMARIZATION = (buysCount) => ({
 
 // ── Sub-Agent Definitions (Buyer Side) ──────────────────────────────────────
 export const BUYER_AGENTS = {
-  orchestrator: { name: 'Orchestrator', icon: '🎯', color: '#f59e0b', usesLLM: true, model: 'gemma-3-27b-it' },
-  discovery:    { name: 'Discovery Agent', icon: '🔍', color: '#3b82f6', usesLLM: true, model: 'gemma-3-27b-it' },
-  evaluation:   { name: 'Evaluation Agent', icon: '🧠', color: '#8b5cf6', usesLLM: true, model: 'gemma-3-27b-it' },
-  budget:       { name: 'Budget Agent', icon: '💰', color: '#f97316', usesLLM: true, model: 'gemma-3-27b-it' },
-  rtb:          { name: 'RTB Agent', icon: '⚡', color: '#ef4444', usesLLM: true, model: 'gemma-3-27b-it' },
-  delivery:     { name: 'Delivery Agent', icon: '📊', color: '#10b981', usesLLM: true, model: 'gemma-3-27b-it' },
+  orchestrator: { name: 'Orchestrator', icon: '🎯', color: '#f59e0b', usesLLM: true, model: 'gemma-2-27b-it' },
+  discovery:    { name: 'Discovery Agent', icon: '🔍', color: '#3b82f6', usesLLM: true, model: 'gemma-2-27b-it' },
+  evaluation:   { name: 'Evaluation Agent', icon: '🧠', color: '#8b5cf6', usesLLM: true, model: 'gemma-2-27b-it' },
+  budget:       { name: 'Budget Agent', icon: '💰', color: '#f97316', usesLLM: true, model: 'gemma-2-27b-it' },
+  rtb:          { name: 'RTB Agent', icon: '⚡', color: '#ef4444', usesLLM: true, model: 'gemma-2-27b-it' },
+  delivery:     { name: 'Delivery Agent', icon: '📊', color: '#10b981', usesLLM: true, model: 'gemma-2-27b-it' },
 };
 
 export const makeLane = (agentKey, contextTokens, monoTokens, contents) => ({
