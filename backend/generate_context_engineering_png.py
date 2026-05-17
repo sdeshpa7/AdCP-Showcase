@@ -24,8 +24,8 @@ def draw_wrapped_text(draw, text, x, y, max_width_pixels, font, fill_color, line
     return current_y
 
 def generate_efficiency_diagram():
-    # Premium Light Layout: 1200 x 980 (increased height for perfect padding)
-    width, height = 1200, 980
+    # Premium Light Layout: 1200 x 1080 (extra height to support beautiful status pills and dynamic content)
+    width, height = 1200, 1080
     img = Image.new('RGB', (width, height), '#FAF9F6')
     draw = ImageDraw.Draw(img)
     
@@ -38,6 +38,7 @@ def generate_efficiency_diagram():
         font_body_bold = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 16, index=1)  # Bold
         font_body = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 16, index=0)       # Regular
         font_stat = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 44, index=1)       # Heavy Bold
+        font_pill = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 13, index=1)       # Bold for Pill Badges
     except Exception:
         font_title = ImageFont.load_default()
         font_subtitle = ImageFont.load_default()
@@ -46,13 +47,14 @@ def generate_efficiency_diagram():
         font_body_bold = ImageFont.load_default()
         font_body = ImageFont.load_default()
         font_stat = ImageFont.load_default()
+        font_pill = ImageFont.load_default()
 
     # --- Main Header Panel ---
     draw.rounded_rectangle([40, 40, 1160, 145], radius=15, fill="#E8F0FE", outline="#1A73E8", width=3)
     draw.text((70, 55), "💡 AdCP CONTEXT ENGINEERING & TOKEN EFFICIENCY", fill="#0D47A1", font=font_title)
     draw.text((70, 100), "Surgical Multi-Agent Context Structures vs. Monolithic LLM Processing", fill="#3C4043", font=font_subtitle)
 
-    # We will compute the layout dynamically to guarantee everything fits without overflows
+    # Bullet point definitions
     left_bullets = [
         ("• Raw Campaign Ingestion:", "Dumps complete multi-page PDF strategy briefs, historical buyer budgets, and delivery checklists directly into the prompt context."),
         ("• Full Inventory Catalog Ingestion:", "Sends all available publisher placements (e.g. 84+ slots across ESPN, JioHotstar, NDTV) at once, forcing the LLM to scan irrelevant channels."),
@@ -67,14 +69,13 @@ def generate_efficiency_diagram():
         ("• Micro-Brief Context Engineering:", "Pushes dynamic target parameters only (budget, audience, channels) instead of full strategy documents, saving over 4.5k brief tokens.")
     ]
 
-    # --- Render Column Content First to Compute Height Dynamically ---
+    # --- Render Column Content Dynamically to Guarantee Perfect Fitting ---
     
-    # Render Left Column Content
+    # Left Column Content (Starting lower at 440 to accommodate status pill)
     col_x_left = 80
     col_width = 410
-    current_y_left = 375
+    current_y_left = 445
     
-    # Draw Inefficiencies Title
     draw.text((col_x_left, current_y_left), "⚠️ Major Structural Inefficiencies:", fill="#C62828", font=font_section)
     current_y_left += 35
     
@@ -84,11 +85,10 @@ def generate_efficiency_diagram():
         current_y_left = draw_wrapped_text(draw, desc, col_x_left + 15, current_y_left, col_width - 15, font_body, "#5F6368", line_spacing=22)
         current_y_left += 16
         
-    # Render Right Column Content
+    # Right Column Content (Starting lower at 440 to accommodate status pill)
     col_x_right = 660
-    current_y_right = 375
+    current_y_right = 445
     
-    # Draw Optimizations Title
     draw.text((col_x_right, current_y_right), "⚡ Surgical Decoupling Features:", fill="#2E7D32", font=font_section)
     current_y_right += 35
     
@@ -102,7 +102,7 @@ def generate_efficiency_diagram():
     max_bullets_y = max(current_y_left, current_y_right)
     
     # --- Draw Results Callout Boxes dynamically below the bullet lists ---
-    result_box_y = max_bullets_y + 10
+    result_box_y = max_bullets_y + 15
     result_box_height = 65
     
     # Draw Left Column Result Box
@@ -117,23 +117,32 @@ def generate_efficiency_diagram():
     card_bottom = result_box_y + result_box_height + 25
 
     # --- Draw Background Card Borders & Headers ---
-    # Draw Left Card Border
+    
+    # --- Left Card Layout ---
     draw.rounded_rectangle([50, 210, 570, card_bottom], radius=12, fill=None, outline="#F44336", width=2)
-    # Draw Left Header Accent Band
+    # Draw Header Accent Band
     draw.rounded_rectangle([50, 210, 570, 260], radius=12, fill="#FFEBEE", outline="#F44336", width=2)
     draw.text((80, 222), "❌ MONOLITHIC BIDDING WINDOW", fill="#C62828", font=font_col_header)
-    # Draw Left Stat Callouts
+    # Stat Header
     draw.text((80, 275), "9,700+ TOKENS", fill="#C62828", font=font_stat)
-    draw.text((80, 325), "Average size per evaluation transaction", fill="#757575", font=font_body)
+    # Red status pill badge
+    draw.rounded_rectangle([80, 335, 265, 365], radius=15, fill="#C62828")
+    draw.text((105, 341), "UNOPTIMIZED BLOAT", fill="#FFFFFF", font=font_pill)
+    # Subtitle
+    draw.text((80, 385), "Average size per evaluation transaction", fill="#757575", font=font_body)
 
-    # Draw Right Card Border
+    # --- Right Card Layout (Surgical fitting with 85% Saved as Status Pill) ---
     draw.rounded_rectangle([630, 210, 1150, card_bottom], radius=12, fill=None, outline="#4CAF50", width=2)
-    # Draw Right Header Accent Band
+    # Draw Header Accent Band
     draw.rounded_rectangle([630, 210, 1150, 260], radius=12, fill="#E8F5E9", outline="#4CAF50", width=2)
     draw.text((660, 222), "✔️ AdCP CONTEXT ARCHITECTURE", fill="#2E7D32", font=font_col_header)
-    # Draw Right Stat Callouts
-    draw.text((660, 275), "1,400 TOKENS (85% SAVED)", fill="#2E7D32", font=font_stat)
-    draw.text((660, 325), "Average size per evaluation transaction", fill="#757575", font=font_body)
+    # Stat Header (No overflow: split cleanly into text and status pill below)
+    draw.text((660, 275), "1,400 TOKENS", fill="#2E7D32", font=font_stat)
+    # Gorgeous glowing green status pill badge for the 85% Saved metric
+    draw.rounded_rectangle([660, 335, 845, 365], radius=15, fill="#2E7D32")
+    draw.text((685, 341), "85% TOKENS SAVED", fill="#FFFFFF", font=font_pill)
+    # Subtitle
+    draw.text((660, 385), "Average size per evaluation transaction", fill="#757575", font=font_body)
 
     # Save to docs folder
     output_path = '/Users/sourabh/Documents/Publishing/AdCP/docs/adcp_context_engineering_token_efficiency.png'
