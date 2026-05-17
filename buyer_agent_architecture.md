@@ -149,7 +149,67 @@ This section outlines the exact programmatic tools and modules used by both the 
 | **Database** | State Persistence | **In-Memory State Machine** (BudgetManager + EventLog) |
 | **Control Layer** | External Interface | **FastAPI MCP Server** (JSON-RPC 2.0) |
 
-## 2. Context Window Engineering
+### A. Buyer Agent (DSP) Orchestration Flow
+*This diagram traces the internal step-by-step logic flow inside the Buyer Agent to ingest a brief, discover catalogs, evaluate context using Gemma-3-27b-it, allocate bids, and audit delivery:*
+
+```mermaid
+graph TD
+    classDef step fill:#e8f0fe,stroke:#1a73e8,stroke-width:2px,color:#0d47a1;
+    classDef logic fill:#ffffff,stroke:#dadce0,stroke-width:1px,color:#5f6368;
+    classDef db fill:#f1f3f4,stroke:#5f6368,stroke-width:1.5px,color:#3c4043;
+
+    A["1. Campaign Brief Ingest <br> (persona.brief_text)"] --> B["2. Discovery Tool Call <br> (get_products)"]
+    B --> C{"3. Channel Filter <br> (Python Pre-LLM)"}
+    C -->|Match| D["4. AI Relevance Evaluation <br> (evaluate_products)"]
+    C -->|Mismatch| Z["Discard placement"]
+    D -->|gemma-3-27b-it| E["5. Score Output <br> (0 to 10 context score)"]
+    E --> F["6. Budget & Pacing Allocation <br> (BudgetManager.allocate)"]
+    F --> G["7. Contract Signing Tool Call <br> (create_media_buy)"]
+    G --> H["8. Live Telemetry Auditing <br> (get_media_buy_delivery)"]
+    H --> I["9. Campaign AI Summary <br> (generate_summary)"]
+
+    class A,B,C,D,E,F,G,H,I step;
+    class Z logic;
+```
+
+---
+
+## 2. The Seller Agent Stack
+
+| Component | Role | Implementation |
+| :--- | :--- | :--- |
+| **LLM** | Safety & Audit Brain | **Grok-3** (via OpenAI Client) |
+| **Tools (Skills)** | Inventory & Yield Controls | **Yield Simulator** (CPM floors & flight pacing telemetry) |
+| **Knowledge** | Monetization Parameters | **Publisher Roster Config** (Slot categories, dynamic floors) |
+| **Database** | Stateful Contract Ledger | **SQLite Store** (`media_buys.db` via `MediaBuyStore`) |
+| **Control Layer** | API Protocol Server | **FastAPI MCP Server** (JSON-RPC 2.0) |
+
+### A. Seller Agent (SSP) Safeguarding & Yield Flow
+*This diagram traces the internal validation, safety screening, ledger writing, and simulation logic executed by the Seller Agent:*
+
+```mermaid
+graph TD
+    classDef step fill:#fef7e0,stroke:#f9ab00,stroke-width:2px,color:#e37400;
+    classDef logic fill:#ffffff,stroke:#dadce0,stroke-width:1px,color:#5f6368;
+    classDef db fill:#f1f3f4,stroke:#5f6368,stroke-width:1.5px,color:#3c4043;
+
+    I["1. Incoming Booking Request <br> (create_media_buy)"] --> J["2. Domain Screening <br> (_brand_safety_check)"]
+    J -->|Grok-3 LLM Audit| K{"3. Brand Safe & Category Match?"}
+    K -->|No| L["Reject Bid & Return Code 403"]
+    K -->|Yes| M["4. Yield Floor Validation"]
+    M --> N{"5. Bid Price >= Dynamic Floor?"}
+    N -->|No| O["Reject Bid & Return Code 402"]
+    N -->|Yes| P["6. Write Contract to SQLite <br> (MediaBuyStore)"]
+    P --> Q["7. Start Telemetry Simulation <br> (simulate_delivery)"]
+    Q --> R["8. Yield Dashboard Reporting <br> (_handle_get_dashboard)"]
+
+    class I,J,K,M,P,Q,R step;
+    class L,O logic;
+```
+
+---
+
+## 3. Context Window Engineering
 To keep the agent performant and cost-effective, we use the following "Noise Reduction" strategies:
 
 ### A. Phase-Based Decoupling (Task Splitting)
@@ -172,10 +232,20 @@ To keep the agent performant and cost-effective, we use the following "Noise Red
 *   **Code Reference**: `budget.py` and `agent.py -> generate_summary()`
 *   **Benefit**: Keeps the context window constant rather than growing linearly with the number of transactions.
 
-## 3. Code Map for Revisit
+---
 
-- **Identity & Identity**: `src/adcp_showcase/buyer/config.py`
-- **Orchestration**: `src/adcp_showcase/buyer/agent.py`
-- **Prompts & Logic**: `src/adcp_showcase/buyer/prompts.py`
-- **Monetary State**: `src/adcp_showcase/buyer/budget.py`
-- **Interface**: `src/adcp_showcase/buyer/server.py`
+## 4. Code Map for Revisit
+
+### Buyer Agent (DSP) Modules
+- **Identity & Config**: `src/adcp_showcase/buyer/config.py`
+- **Orchestration Brain**: `src/adcp_showcase/buyer/agent.py`
+- **Prompts & Instructions**: `src/adcp_showcase/buyer/prompts.py`
+- **Pacing State Machine**: `src/adcp_showcase/buyer/budget.py`
+- **MCP Server Protocol Interface**: `src/adcp_showcase/buyer/server.py`
+
+### Seller Agent (SSP) Modules
+- **Dynamic Floor Yield Engine**: `src/adcp_showcase/seller/inventory.py`
+- **Orchestration & Validation**: `src/adcp_showcase/seller/server.py`
+- **SQLite Ledger Storage**: `src/adcp_showcase/seller/store.py`
+- **Pacing Simulation Telemetry**: `src/adcp_showcase/seller/delivery.py`
+- **Publisher Configuration**: `src/adcp_showcase/seller/config.py`
