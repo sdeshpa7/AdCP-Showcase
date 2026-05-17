@@ -7,86 +7,28 @@ This document outlines the structural design and context engineering strategies 
 ## 📑 Presentation Slides & Handshake Diagrams (Clean 2D Vectors)
 *These images have been saved directly to your project root folder. You can save, download, and drop them directly into your PowerPoint / Google Slides pitch deck!*
 
-### 1. Master System Diagram: Buyer & Seller Handshake (No Cutoffs)
-*A single, high-contrast visual showing both agents and their symmetrical client-server programmatic tools with nested skills:*
+### 1. Buyer Agent (DSP) Orchestration Stack (PowerPoint Ready)
+*Dedicated corporate slide visual mapping the client-side DSP programmatic tools and nested campaign optimization skills:*
+
+![Buyer Agent DSP Orchestration Stack](buyer_agent_presentation_schematic.png)
+
+---
+
+### 2. Seller Agent (SSP) Orchestration Stack (PowerPoint Ready)
+*Dedicated corporate slide visual mapping the server-side SSP programmatic tools and nested publisher monetization safeguarding skills:*
+
+![Seller Agent SSP Orchestration Stack](seller_agent_presentation_schematic.png)
+
+---
+
+### 3. Symmetrical Multi-Agent Handshake Flow (Symmetrical Schematic)
+*Master client-server handshake visual showing the interactive communication channels:*
 
 ![Unified AdCP Multi-Agent Presentation Schematic](adcp_unified_presentation_schematic.png)
 
 ---
 
-### 2. Symmetrical Live-Rendered Vector Schematic (Interactive Diagram)
-*This is a live-rendered vector schematic mapping the symmetrical client-server programmatic tools and nested cognitive skills:*
-
-```mermaid
-graph LR
-    %% Theme Configurations
-    classDef buyer fill:#e8f0fe,stroke:#1a73e8,stroke-width:2px,color:#0d47a1;
-    classDef seller fill:#fef7e0,stroke:#f9ab00,stroke-width:2px,color:#e37400;
-    classDef bridge fill:#e6f4ea,stroke:#137333,stroke-width:2px,color:#137333;
-    classDef skill fill:#ffffff,stroke:#dadce0,stroke-width:1px,stroke-dasharray: 5 5,color:#5f6368;
-
-    %% Left Column: Buyer Agent (DSP)
-    subgraph DSP ["🏢 BUYER AGENT (DSP)"]
-        B1["Tool: get_products()"]
-        B1_S["Skill: Brief Ingestion & Catalog Discovery"]
-        
-        B2["Tool: create_media_buy()"]
-        B2_S1["Skill: LLM Relevance Scoring <br>(via evaluate_products() using gemma-3-27b-it)"]
-        B2_S2["Skill: Relevance-Price Bid Negotiation"]
-        B2_S3["Skill: Pacing & Safety (BudgetManager)"]
-        
-        B3["Tool: get_media_buy_delivery()"]
-        B3_S["Skill: Pacing & Performance Auditing"]
-    end
-
-    %% Center Column: MCP Communication Bridge
-    subgraph BRIDGE ["🌁 MCP COMMUNICATION BRIDGE"]
-        H1["Discovery Handshake <br> (get_products)"]
-        H2["Bidding & Booking Handshake <br> (create_media_buy)"]
-        H3["Live Telemetry Handshake <br> (get_media_buy_delivery)"]
-    end
-
-    %% Right Column: Seller Agent (SSP)
-    subgraph SSP ["📰 SELLER AGENT (SSP)"]
-        S1["Tool: _brand_safety_check()"]
-        S1_S["Skill: Brand Safety Check & Domain Risk Auditing <br>(using Grok-3 LLM)"]
-        
-        S2["Tool: create_media_buy()"]
-        S2_S1["Skill: Dynamic Floor CPM Validation"]
-        S2_S2["Skill: Programmatic Contract Ledger Writing"]
-        
-        S3["Tool: get_media_buy_delivery()"]
-        S3_S["Skill: Real-Time Pacing Telemetry"]
-        
-        S4["Tool: _handle_get_dashboard()"]
-        S4_S["Skill: Dashboard Yield Metrics Aggregator"]
-    end
-
-    %% Symmetrical Bridges & Injections
-    B1 === H1 === S2
-    B2 === H2 === S2
-    B3 === H3 === S3
-
-    %% Connect Tools to Skills
-    B1 --> B1_S
-    B2 --> B2_S1 & B2_S2 & B2_S3
-    B3 --> B3_S
-
-    S1 --> S1_S
-    S2 --> S2_S1 & S2_S2
-    S3 --> S3_S
-    S4 --> S4_S
-
-    %% Style Applications
-    class DSP,B1,B2,B3 buyer;
-    class SSP,S1,S2,S3,S4 seller;
-    class BRIDGE,H1,H2,H3 bridge;
-    class B1_S,B2_S1,B2_S2,B2_S3,B3_S,S1_S,S2_S1,S2_S2,S3_S,S4_S skill;
-```
-
----
-
-### 2. Chronological Handshake Sequence Flow
+### 4. Chronological Handshake Sequence Flow (Sequence Flow Chart)
 *Traces the step-by-step transaction workflow from initial brief ingestion to final SQLite database contract validation:*
 
 ![Chronological Handshake Sequence Flow](sequence_flow_presentation_schematic.png)
@@ -149,67 +91,7 @@ This section outlines the exact programmatic tools and modules used by both the 
 | **Database** | State Persistence | **In-Memory State Machine** (BudgetManager + EventLog) |
 | **Control Layer** | External Interface | **FastAPI MCP Server** (JSON-RPC 2.0) |
 
-### A. Buyer Agent (DSP) Orchestration Flow
-*This diagram traces the internal step-by-step logic flow inside the Buyer Agent to ingest a brief, discover catalogs, evaluate context using Gemma-3-27b-it, allocate bids, and audit delivery:*
-
-```mermaid
-graph TD
-    classDef step fill:#e8f0fe,stroke:#1a73e8,stroke-width:2px,color:#0d47a1;
-    classDef logic fill:#ffffff,stroke:#dadce0,stroke-width:1px,color:#5f6368;
-    classDef db fill:#f1f3f4,stroke:#5f6368,stroke-width:1.5px,color:#3c4043;
-
-    A["1. Campaign Brief Ingest <br> (persona.brief_text)"] --> B["2. Discovery Tool Call <br> (get_products)"]
-    B --> C{"3. Channel Filter <br> (Python Pre-LLM)"}
-    C -->|Match| D["4. AI Relevance Evaluation <br> (evaluate_products)"]
-    C -->|Mismatch| Z["Discard placement"]
-    D -->|gemma-3-27b-it| E["5. Score Output <br> (0 to 10 context score)"]
-    E --> F["6. Budget & Pacing Allocation <br> (BudgetManager.allocate)"]
-    F --> G["7. Contract Signing Tool Call <br> (create_media_buy)"]
-    G --> H["8. Live Telemetry Auditing <br> (get_media_buy_delivery)"]
-    H --> I["9. Campaign AI Summary <br> (generate_summary)"]
-
-    class A,B,C,D,E,F,G,H,I step;
-    class Z logic;
-```
-
----
-
-## 2. The Seller Agent Stack
-
-| Component | Role | Implementation |
-| :--- | :--- | :--- |
-| **LLM** | Safety & Audit Brain | **Grok-3** (via OpenAI Client) |
-| **Tools (Skills)** | Inventory & Yield Controls | **Yield Simulator** (CPM floors & flight pacing telemetry) |
-| **Knowledge** | Monetization Parameters | **Publisher Roster Config** (Slot categories, dynamic floors) |
-| **Database** | Stateful Contract Ledger | **SQLite Store** (`media_buys.db` via `MediaBuyStore`) |
-| **Control Layer** | API Protocol Server | **FastAPI MCP Server** (JSON-RPC 2.0) |
-
-### A. Seller Agent (SSP) Safeguarding & Yield Flow
-*This diagram traces the internal validation, safety screening, ledger writing, and simulation logic executed by the Seller Agent:*
-
-```mermaid
-graph TD
-    classDef step fill:#fef7e0,stroke:#f9ab00,stroke-width:2px,color:#e37400;
-    classDef logic fill:#ffffff,stroke:#dadce0,stroke-width:1px,color:#5f6368;
-    classDef db fill:#f1f3f4,stroke:#5f6368,stroke-width:1.5px,color:#3c4043;
-
-    I["1. Incoming Booking Request <br> (create_media_buy)"] --> J["2. Domain Screening <br> (_brand_safety_check)"]
-    J -->|Grok-3 LLM Audit| K{"3. Brand Safe & Category Match?"}
-    K -->|No| L["Reject Bid & Return Code 403"]
-    K -->|Yes| M["4. Yield Floor Validation"]
-    M --> N{"5. Bid Price >= Dynamic Floor?"}
-    N -->|No| O["Reject Bid & Return Code 402"]
-    N -->|Yes| P["6. Write Contract to SQLite <br> (MediaBuyStore)"]
-    P --> Q["7. Start Telemetry Simulation <br> (simulate_delivery)"]
-    Q --> R["8. Yield Dashboard Reporting <br> (_handle_get_dashboard)"]
-
-    class I,J,K,M,P,Q,R step;
-    class L,O logic;
-```
-
----
-
-## 3. Context Window Engineering
+## 2. Context Window Engineering
 To keep the agent performant and cost-effective, we use the following "Noise Reduction" strategies:
 
 ### A. Phase-Based Decoupling (Task Splitting)
@@ -232,20 +114,10 @@ To keep the agent performant and cost-effective, we use the following "Noise Red
 *   **Code Reference**: `budget.py` and `agent.py -> generate_summary()`
 *   **Benefit**: Keeps the context window constant rather than growing linearly with the number of transactions.
 
----
+## 3. Code Map for Revisit
 
-## 4. Code Map for Revisit
-
-### Buyer Agent (DSP) Modules
-- **Identity & Config**: `src/adcp_showcase/buyer/config.py`
-- **Orchestration Brain**: `src/adcp_showcase/buyer/agent.py`
-- **Prompts & Instructions**: `src/adcp_showcase/buyer/prompts.py`
-- **Pacing State Machine**: `src/adcp_showcase/buyer/budget.py`
-- **MCP Server Protocol Interface**: `src/adcp_showcase/buyer/server.py`
-
-### Seller Agent (SSP) Modules
-- **Dynamic Floor Yield Engine**: `src/adcp_showcase/seller/inventory.py`
-- **Orchestration & Validation**: `src/adcp_showcase/seller/server.py`
-- **SQLite Ledger Storage**: `src/adcp_showcase/seller/store.py`
-- **Pacing Simulation Telemetry**: `src/adcp_showcase/seller/delivery.py`
-- **Publisher Configuration**: `src/adcp_showcase/seller/config.py`
+- **Identity & Identity**: `src/adcp_showcase/buyer/config.py`
+- **Orchestration**: `src/adcp_showcase/buyer/agent.py`
+- **Prompts & Logic**: `src/adcp_showcase/buyer/prompts.py`
+- **Monetary State**: `src/adcp_showcase/buyer/budget.py`
+- **Interface**: `src/adcp_showcase/buyer/server.py`
