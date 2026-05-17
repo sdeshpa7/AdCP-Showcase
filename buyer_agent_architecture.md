@@ -10,7 +10,7 @@ This document outlines the structural design and context engineering strategies 
 ### 1. Master System Diagram: Buyer & Seller Handshake (No Cutoffs)
 *A single, high-contrast visual showing both agents, the MCP tool interface with nested skills, and SQLite ledger:*
 
-![Unified AdCP Multi-Agent Presentation Schematic](adcp_unified_presentation_schematic.png)
+![Unified AdCP Multi-Agent Presentation Schematic](adcp_symmetrical_presentation_schematic.png)
 
 ---
 
