@@ -7,10 +7,75 @@ This document outlines the structural design and context engineering strategies 
 ## 📑 Presentation Slides & Handshake Diagrams (Clean 2D Vectors)
 *These images have been saved directly to your project root folder. You can save, download, and drop them directly into your PowerPoint / Google Slides pitch deck!*
 
-### 1. Master System Diagram: Buyer & Seller Handshake (No Cutoffs)
-*A single, high-contrast visual showing both agents, the MCP tool interface with nested skills, and SQLite ledger:*
+### 1. Master System Diagram: Buyer & Seller Handshake (Symmetrical Vector Architecture)
+*This is a live-rendered vector schematic mapping the symmetrical client-server programmatic tools and nested cognitive skills:*
 
-![Unified AdCP Multi-Agent Presentation Schematic](adcp_symmetrical_presentation_schematic_v3.png)
+```mermaid
+graph LR
+    %% Theme Configurations
+    classDef buyer fill:#e8f0fe,stroke:#1a73e8,stroke-width:2px,color:#0d47a1;
+    classDef seller fill:#fef7e0,stroke:#f9ab00,stroke-width:2px,color:#e37400;
+    classDef bridge fill:#e6f4ea,stroke:#137333,stroke-width:2px,color:#137333;
+    classDef skill fill:#ffffff,stroke:#dadce0,stroke-width:1px,stroke-dasharray: 5 5,color:#5f6368;
+
+    %% Left Column: Buyer Agent (DSP)
+    subgraph DSP ["🏢 BUYER AGENT (DSP)"]
+        B1["Tool: get_products()"]
+        B1_S["Skill: Brief Ingestion & Catalog Discovery"]
+        
+        B2["Tool: create_media_buy()"]
+        B2_S1["Skill: LLM Relevance Scoring <br>(via evaluate_products() using gemma-3-27b-it)"]
+        B2_S2["Skill: Relevance-Price Bid Negotiation"]
+        B2_S3["Skill: Pacing & Safety (BudgetManager)"]
+        
+        B3["Tool: get_media_buy_delivery()"]
+        B3_S["Skill: Pacing & Performance Auditing"]
+    end
+
+    %% Center Column: MCP Communication Bridge
+    subgraph BRIDGE ["🌁 MCP COMMUNICATION BRIDGE"]
+        H1["Discovery Handshake <br> (get_products)"]
+        H2["Bidding & Booking Handshake <br> (create_media_buy)"]
+        H3["Live Telemetry Handshake <br> (get_media_buy_delivery)"]
+    end
+
+    %% Right Column: Seller Agent (SSP)
+    subgraph SSP ["📰 SELLER AGENT (SSP)"]
+        S1["Tool: _brand_safety_check()"]
+        S1_S["Skill: Brand Safety Check & Domain Risk Auditing <br>(using Grok-3 LLM)"]
+        
+        S2["Tool: create_media_buy()"]
+        S2_S1["Skill: Dynamic Floor CPM Validation"]
+        S2_S2["Skill: Programmatic Contract Ledger Writing"]
+        
+        S3["Tool: get_media_buy_delivery()"]
+        S3_S["Skill: Real-Time Pacing Telemetry"]
+        
+        S4["Tool: _handle_get_dashboard()"]
+        S4_S["Skill: Dashboard Yield Metrics Aggregator"]
+    end
+
+    %% Symmetrical Bridges & Injections
+    B1 === H1 === S2
+    B2 === H2 === S2
+    B3 === H3 === S3
+
+    %% Connect Tools to Skills
+    B1 --> B1_S
+    B2 --> B2_S1 & B2_S2 & B2_S3
+    B3 --> B3_S
+
+    S1 --> S1_S
+    S2 --> S2_S1 & S2_S2
+    S3 --> S3_S
+    S4 --> S4_S
+
+    %% Style Applications
+    class DSP,B1,B2,B3 buyer;
+    class SSP,S1,S2,S3,S4 seller;
+    class BRIDGE,H1,H2,H3 bridge;
+    class B1_S,B2_S1,B2_S2,B2_S3,B3_S,S1_S,S2_S1,S2_S2,S3_S,S4_S skill;
+```
 
 ---
 
