@@ -23,37 +23,46 @@ This document outlines the structural design and context engineering strategies 
 
 ---
 
-## 🛠️ MCP Tools & Skills Mapping
+## 🛠️ Triple-Column MCP Tools & Skills Mapping
 
-This section outlines the exact programmatic tools used by each agent, with their internal execution skills nested under them:
+This section outlines the exact programmatic tools and modules used by both the **Buyer Agent (DSP)** and **Seller Agent (SSP)**, with their specific execution skills nested under them:
 
 ---
 
-### 🏢 Buyer Agent (DSP) — Tools Used & Nested Skills
-*These are the programmatic MCP tools used by the Buyer Agent to execute its campaign strategies, and the internal cognitive skills nested under each tool:*
+### 🏢 Buyer Agent (DSP) — Tools & Nested Skills
+*These are the programmatic client-side tools run by the Buyer Agent to execute its campaigns, and the internal cognitive/decisioning skills nested under each tool:*
 
 *   **Tool: `get_products()`**
-    *   **Nested Skill:** *Brief Ingestion & Catalog Discovery* — Ingests campaign parameters, registers seller endpoints, and queries the publisher's product catalog.
+    *   **Nested Skill:** *Brief Ingestion & Catalog Discovery* — Ingests campaign briefs, registers target seller endpoints, and queries the publisher's product catalog.
 *   **Tool: `create_media_buy()`**
-    *   **Nested Skill:** *LLM Relevance Scoring* — Passes discovered catalogs to `gemma-3-27b-it` to score relevance and match criteria on a 0-10 scale.
-    *   **Nested Skill:** *Proportional Budget Allocation* — Calculates campaign spending using the local `BudgetManager` to enforce safety caps, pacing budgets, and a 50% single-buy ceiling.
-    *   **Nested Skill:** *Contract Signing & Execution* — Locks bids, validates pricing options, and programmatically signs/submits media buy transactions.
+    *   **Nested Skill:** *LLM Relevance Scoring* — Passes discovered catalogs to `gemma-3-27b-it` to score context matches on a 0-10 scale.
+    *   **Nested Skill:** *Relevance-Price Bid Negotiation* — Programmatically computes customized campaign bids/budgets based on slot value vs constraints.
+    *   **Nested Skill:** *Pacing & Safety Controls (`BudgetManager`)* — Enforces safety spending caps, daily pacing buffers, and a maximum 50% single-publisher spend ceiling.
+    *   **Nested Skill:** *Contract Signing & Execution* — Locks bids, validates package options, and programmatically signs/submits media buy transactions.
 *   **Tool: `get_media_buy_delivery()`**
-    *   **Nested Skill:** *Pacing & Performance Monitoring* — Periodically aggregates live campaign performance logs (Impressions served, CTR %, Spend, ROAS) to track delivery pacing.
+    *   **Nested Skill:** *Pacing & Performance Auditing* — Periodically aggregates live campaign performance metrics to track average CTR and dynamic flight pacing.
+
+---
+
+### 🌁 MCP Communication Bridge
+*The double-sided programmatic request/response connection channels connecting the two agents:*
+*   `get_products()` ⇄ **Product Discovery Handshake**
+*   `create_media_buy()` ⇄ **Relevance-Price Bidding & Contract Booking**
+*   `get_media_buy_delivery()` ⇄ **Live Telemetry Auditing Handshake**
 
 ---
 
 ### 📰 Seller Agent (SSP) — Invoked Tools & Nested Skills
-*These are the internal tools/APIs that the Seller Agent invokes, and the publisher safeguarding skills nested under each one:*
+*These are the internal tools and APIs that the Seller Agent invokes, and the publisher safeguarding/monetization skills nested under each one:*
 
-*   **Invoked Tool: Grok-3 LLM Client**
-    *   **Nested Skill:** *Brand Safety & Domain Check* — Leverages Grok-3-mini to run evaluations on the buyer's domain reputation, category matches, and competitive conflicts.
-*   **Invoked Tool: Programmatic Yield Simulator**
-    *   **Nested Skill:** *Dynamic Floor CPM Optimization* — Calculates available ad inventory floors and dynamically scales pricing options based on tournament/match demand intensity.
-    *   **Nested Skill:** *Delivery Telemetry Simulation* — Computes and reports real-time campaign performance logs based on active play flight pacing ratios.
-*   **Invoked Tool: Private Local Store**
-    *   **Nested Skill:** *Stateful Media Contract Ledger* — Secures, validates, and writes approved media contracts to the publisher's secure data store.
-    *   **Nested Skill:** *Dashboard Metrics Aggregator (`get_dashboard`)* — Aggregates live financials (eCPM yield, total revenue) and ranks top programmatic buyers for the Publisher Yield Portal.
+*   **Tool: `Grok-3 LLM Client`**
+    *   **Nested Skill:** *Brand Safety Check & Domain Risk Auditing* — Leverages Grok-3-mini to assess competitive conflicts and safety scores for incoming buyer domains.
+*   **Tool: `Yield Simulator`**
+    *   **Nested Skill:** *Dynamic Floor CPM Validation* — Evaluates the Buyer's submitted bid against real-time CPM floors (dynamic demand pricing).
+    *   **Nested Skill:** *Real-Time Pacing Telemetry* — Computes and simulates play-by-play impressions and click schedules based on active flight pacing ratios.
+*   **Tool: `Private Local Store`**
+    *   **Nested Skill:** *Programmatic Contract Writing* — Secures, validates, and writes approved media contracts to private publisher storage.
+    *   **Nested Skill:** *Dashboard Metrics Aggregator* — Calculates live financials (eCPM yield, total revenue) and ranks top programmatic buyers for the Publisher Yield Portal.
 
 ---
 
