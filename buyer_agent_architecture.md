@@ -52,17 +52,18 @@ This section outlines the exact programmatic tools and modules used by both the 
 
 ---
 
-### 📰 Seller Agent (SSP) — Invoked Tools & Nested Skills
-*These are the internal tools and APIs that the Seller Agent invokes, and the publisher safeguarding/monetization skills nested under each one:*
+### 📰 Seller Agent (SSP) — Tools & Nested Skills
+*These are the programmatic server-side tools and helper methods executed by the Seller Agent, and the specific publisher skills nested under each tool:*
 
-*   **Tool: `Grok-3 LLM Client`**
-    *   **Nested Skill:** *Brand Safety Check & Domain Risk Auditing* — Leverages Grok-3-mini to assess competitive conflicts and safety scores for incoming buyer domains.
-*   **Tool: `Yield Simulator`**
-    *   **Nested Skill:** *Dynamic Floor CPM Validation* — Evaluates the Buyer's submitted bid against real-time CPM floors (dynamic demand pricing).
-    *   **Nested Skill:** *Real-Time Pacing Telemetry* — Computes and simulates play-by-play impressions and click schedules based on active flight pacing ratios.
-*   **Tool: `Private Local Store`**
-    *   **Nested Skill:** *Programmatic Contract Writing* — Secures, validates, and writes approved media contracts to private publisher storage.
-    *   **Nested Skill:** *Dashboard Metrics Aggregator* — Calculates live financials (eCPM yield, total revenue) and ranks top programmatic buyers for the Publisher Yield Portal.
+*   **Tool: `_brand_safety_check()`**
+    *   **Nested Skill:** *Brand Safety Check & Domain Risk Auditing* — Uses Grok-3 LLM to zero-shot audit domain reputation, brand category fit, and competitive conflicts.
+*   **Tool: `create_media_buy()`**
+    *   **Nested Skill:** *Dynamic Floor CPM Validation* — Matches incoming proposed budgets against dynamic floor CPM requirements.
+    *   **Nested Skill:** *Programmatic Contract Ledger Writing* — Persists stateful media contracts securely to private publisher storage.
+*   **Tool: `get_media_buy_delivery()`**
+    *   **Nested Skill:** *Real-Time Pacing Telemetry* — Computes play-by-play impressions and click schedules based on active flight pacing.
+*   **Tool: `_handle_get_dashboard()`**
+    *   **Nested Skill:** *Dashboard Yield Metrics Aggregator* — Summarizes aggregate publisher revenue, dynamic eCPM, and top buyer metrics.
 
 ---
 
