@@ -21,49 +21,39 @@ This document outlines the structural design and context engineering strategies 
 
 ---
 
-## 🛠️ MCP Client-Server Tools & Skills Mapping
+---
 
-In a standard AdCP environment, the communication is decoupled using the **Model Context Protocol (MCP)**:
-*   **The Buyer Agent acts as the MCP Client:** It is a budget-aware orchestrator. It does not host tools itself; rather, it **invokes** them over JSON-RPC.
-*   **The Seller Agent acts as the MCP Server:** Each publisher runs an independent server. It **exposes and hosts** the programmatic tools, executing custom Python and LLM skills internally upon receiving client requests.
+## 🛠️ MCP Tools & Skills Mapping
+
+This section outlines the exact programmatic tools used by each agent, with their internal execution skills nested under them:
 
 ---
 
-### 🏢 Buyer Agent (MCP Client) — Tool Invocations & Internal Skills
-*These are the internal cognitive skills of the Buyer Agent, and the corresponding external tools it calls to achieve them:*
+### 🏢 Buyer Agent (DSP) — Tools Used & Nested Skills
+*These are the programmatic MCP tools used by the Buyer Agent to execute its campaign strategies, and the internal cognitive skills nested under each tool:*
 
-*   **Skill: Campaign Ingestion & Discovery**
-    *   *Action:* Ingests campaign briefs and looks up verified seller endpoints.
-    *   *Invokes Tool:* **`get_products()`** on the target Seller Agent to fetch matching inventory catalogs.
-*   **Skill: LLM Relevance Evaluation**
-    *   *Action:* Passes fetched inventory data to `gemma-3-27b-it` to score placement relevance on a 0-10 scale.
-    *   *Invokes Tool:* None (Internal cognitive process).
-*   **Skill: Proportional Budget Allocation**
-    *   *Action:* Runs local budget filters to enforce safety constraints, daily pacing limits, and a maximum 50% single-buy cap per publisher.
-    *   *Invokes Tool:* None (Internal logic managed by `BudgetManager`).
-*   **Skill: Contract Execution**
-    *   *Action:* Transmits locked bids and secured pricing options to final transaction.
-    *   *Invokes Tool:* **`create_media_buy()`** on the target Seller Agent to book campaign inventory.
-*   **Skill: Performance Telemetry Monitoring**
-    *   *Action:* Periodically fetches active campaign performance metrics to track average CTR, live impressions, and dynamic flight pacing.
-    *   *Invokes Tool:* **`get_media_buy_delivery()`** on the target Seller Agent.
+*   **Tool: `get_products()`**
+    *   **Nested Skill:** *Brief Ingestion & Catalog Discovery* — Ingests campaign parameters, registers seller endpoints, and queries the publisher's product catalog.
+*   **Tool: `create_media_buy()`**
+    *   **Nested Skill:** *LLM Relevance Scoring* — Passes discovered catalogs to `gemma-3-27b-it` to score relevance and match criteria on a 0-10 scale.
+    *   **Nested Skill:** *Proportional Budget Allocation* — Calculates campaign spending using the local `BudgetManager` to enforce safety caps, pacing budgets, and a 50% single-buy ceiling.
+    *   **Nested Skill:** *Contract Signing & Execution* — Locks bids, validates pricing options, and programmatically signs/submits media buy transactions.
+*   **Tool: `get_media_buy_delivery()`**
+    *   **Nested Skill:** *Pacing & Performance Monitoring* — Periodically aggregates live campaign performance logs (Impressions served, CTR %, Spend, ROAS) to track delivery pacing.
 
 ---
 
-### 📰 Seller Agent (MCP Server) — Exposed Tools & Hosted Skills
-*These are the programmatic tools hosted and exposed by the Seller Agent, and the specific Python/LLM validation skills executed under them:*
+### 📰 Seller Agent (SSP) — Invoked Tools & Nested Skills
+*These are the internal tools/APIs that the Seller Agent invokes, and the publisher safeguarding skills nested under each one:*
 
-*   **Exposes Tool: `get_adcp_capabilities()`**
-    *   *Nested Skill:* **Sandbox Feature Declaration** — Programmatically reports currency formats (INR), platforms, supported ad types, and active server features.
-*   **Exposes Tool: `get_products()`**
-    *   *Nested Skill:* **Inventory Catalog Service** — Services available ad slots, audience characteristics, and dynamic CPM floor rates.
-    *   *Nested Skill:* **Dashboard Telemetry Aggregator (`get_dashboard`)** — Aggregates live financials (eCPM yield, total revenue) and ranks top programmatic buyers from the local store.
-*   **Exposes Tool: `create_media_buy()`**
-    *   *Nested Skill:* **Grok-3 Brand Safety Check** — Uses Grok-3-mini to assess competitive conflicts and risk scores for incoming brand domains.
-    *   *Nested Skill:* **Contract & Exclusivity Validator** — Ensures package IDs are correct and that the media budget satisfies dyn-floor conditions.
-    *   *Nested Skill:* **Stateful Media Contract Ledger** — Programmatically secures and persists approved campaign contracts within the publisher's secure data store.
-*   **Exposes Tool: `get_media_buy_delivery()`**
-    *   *Nested Skill:* **Dynamic Telemetry Simulation** — Computes and reports real-time campaign delivery stats (Impressions served, CTR %, Spend, ROAS) based on live play pacing.
+*   **Invoked Tool: Grok-3 LLM Client**
+    *   **Nested Skill:** *Brand Safety & Domain Check* — Leverages Grok-3-mini to run evaluations on the buyer's domain reputation, category matches, and competitive conflicts.
+*   **Invoked Tool: Programmatic Yield Simulator**
+    *   **Nested Skill:** *Dynamic Floor CPM Optimization* — Calculates available ad inventory floors and dynamically scales pricing options based on tournament/match demand intensity.
+    *   **Nested Skill:** *Delivery Telemetry Simulation* — Computes and reports real-time campaign performance logs based on active play flight pacing ratios.
+*   **Invoked Tool: Private Local Store**
+    *   **Nested Skill:** *Stateful Media Contract Ledger* — Secures, validates, and writes approved media contracts to the publisher's secure data store.
+    *   **Nested Skill:** *Dashboard Metrics Aggregator (`get_dashboard`)* — Aggregates live financials (eCPM yield, total revenue) and ranks top programmatic buyers for the Publisher Yield Portal.
 
 ---
 
