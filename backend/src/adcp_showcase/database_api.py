@@ -121,10 +121,11 @@ async def get_agent_data(agent_id: str):
 
     conn.close()
     
-    # Calculate dynamic agentic token usage & cost benchmarks based on actual campaigns
+    # Calculate realistic multi-agent token usage & cost benchmarks based on actual campaigns
+    # Each transaction represents a full discovery, structured scoring, safety audit, floor negotiation, and pacing cycle
     num_buys = len(buys)
-    agent_tokens = num_buys * (2450 + 1200) + 15000 if num_buys > 0 else 0
-    agent_cost = agent_tokens * 0.00015 # Blended rate of ₹0.15 per 1K tokens
+    agent_tokens = num_buys * 125000 + 750000 if num_buys > 0 else 0
+    agent_cost = agent_tokens * 0.00042 # Commercial blended rate: $5.00/1M tokens (~₹420 per 1M tokens or ₹0.42 per 1K tokens)
 
     # Construct response matching MOCK_DATA structure
     return {
@@ -236,10 +237,11 @@ async def get_publisher_data(pub_name: str):
 
     actual_pub_name = buys[0]['publisher']
 
-    # Calculate dynamic publisher brand safety check token usage & cost benchmarks based on actual campaigns
+    # Calculate realistic brand-safety & compliance multi-agent token usage & cost benchmarks based on actual campaigns
+    # Each transaction represents a full catalog compilation, Grok-3 safety check, floor evaluation, and audit cycle
     num_buys = len(buys)
-    pub_tokens = num_buys * (1850 + 600) + 8000 if num_buys > 0 else 0
-    pub_cost = pub_tokens * 0.00018 # Blended rate of ₹0.18 per 1K tokens (Grok-3 API)
+    pub_tokens = num_buys * 95000 + 450000 if num_buys > 0 else 0
+    pub_cost = pub_tokens * 0.00042 # Blended commercial rate: $5.00/1M tokens (~₹420 per 1M tokens or ₹0.42 per 1K tokens)
 
     return {
         "success": True,
