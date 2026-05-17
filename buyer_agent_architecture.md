@@ -32,7 +32,7 @@ This document outlines the structural design and context engineering strategies 
 *   **Tool: `create_media_buy()`**
     *   **Nested Skill:** *Grok-3 Brand Safety Check* — Uses Grok LLM to validate buyer domain reputation, competitive overlaps, and risk scoring.
     *   **Nested Skill:** *Contract & Exclusivity Validator* — Ensures package IDs are correct and that the media budget satisfies dyn-floor conditions.
-    *   **Nested Skill:** *SQLite Transaction Ledger* — Persists approved programmatic deals directly to the central SQL database.
+    *   **Nested Skill:** *Stateful Media Contract Ledger* — Programmatically secures and persists approved campaign contracts within the publisher's secure data store.
 *   **Tool: `get_media_buy_delivery()`**
     *   **Nested Skill:** *Dynamic Telemetry Simulation* — Computes and reports real-time campaign delivery stats (Impressions served, CTR %, Spend, ROAS) based on live play pacing.
 
