@@ -145,6 +145,7 @@ export const BUYER_AGENTS = {
   evaluation:   { name: 'Evaluation Agent', icon: '🧠', color: '#8b5cf6', usesLLM: true, model: 'gemma-2-27b-it' },
   budget:       { name: 'Budget Agent', icon: '💰', color: '#f97316', usesLLM: true, model: 'gemma-2-27b-it' },
   rtb:          { name: 'RTB Agent', icon: '⚡', color: '#ef4444', usesLLM: true, model: 'gemma-2-27b-it' },
+  negotiation:  { name: 'Negotiation Agent', icon: '🤝', color: '#8b5cf6', usesLLM: true, model: 'gemma-2-27b-it' },
   delivery:     { name: 'Delivery Agent', icon: '📊', color: '#10b981', usesLLM: true, model: 'gemma-2-27b-it' },
 };
 
@@ -290,7 +291,15 @@ export const parsePromptIntent = (promptText) => {
   // 4. Check for "open exchange" / "all publishers" intent
   const isOpenExchange = lower.includes('open exchange') || lower.includes('all publishers') || lower.includes('all available');
 
-  // 5. Determine if there's a specific targeting intent
+  // 5. Find flight dates (e.g., "May 15th to May 30th")
+  let flightPeriod = null;
+  const dateRegex = /(?:from\s+)?([a-z]+\s+\d{1,2}(?:st|nd|rd|th)?)\s+to\s+([a-z]+\s+\d{1,2}(?:st|nd|rd|th)?)/i;
+  const dateMatch = promptText.match(dateRegex);
+  if (dateMatch) {
+    flightPeriod = { start: dateMatch[1], end: dateMatch[2] };
+  }
+
+  // 6. Determine if there's a specific targeting intent
   const hasSpecificTarget = targetedPublishers.length > 0 && !isOpenExchange;
 
   // 6. If specific publishers mentioned, use only those.
@@ -322,6 +331,7 @@ export const parsePromptIntent = (promptText) => {
     geoTargets,
     hasSpecificTarget,
     isOpenExchange,
+    flightPeriod,
     rawPrompt: promptText,
   };
 };
@@ -700,6 +710,76 @@ export const generateBuyerFeed = (agentId, agentData, campaignPrompt = '') => {
     }
   });
 
+  // ── Phase 3: Negotiation (Negotiation Agent) ──────────────────────
+  const topEvaluations = evaluations.filter(e => e.recommended).slice(0, 3);
+  
+  if (topEvaluations.length > 0) {
+    // Handoff: Evaluation Agent → Negotiation Agent
+    events.push(makeHandoff('evaluation', 'negotiation', topEvaluations.length * 150, 
+      `${topEvaluations.length} recommended products for price/safety negotiation`));
+
+    // ── Negotiation Agent Lane ─────────────────────────────────────────
+    events.push(makeLane('negotiation', 1250, monoWindow, ['product_specs', 'max_cpm', 'seller_terms', 'brand_safety_brief']));
+
+    topEvaluations.forEach((evalItem, idx) => {
+      const port = SELLER_PORTS[evalItem.publisher] || 9000;
+      const isJioHotstar = evalItem.publisher === "JioHotstar";
+      const isAmazon = agentId.toLowerCase().includes('amazon');
+      const isIPL = campaignPrompt.toLowerCase().includes('ipl') || campaignPrompt.toLowerCase().includes('playoff');
+      
+      // Generate a realistic conversation history
+      const conversation = [];
+      
+      if (isJioHotstar && isAmazon && isIPL) {
+        // Special high-fidelity script for the user's specific prompt
+        conversation.push({ role: "buyer", text: "Initiating negotiation for Amazon Prime Day. We require high-engagement video slots during the IPL Playoffs. Specifically looking at CTV Mid-rolls and Mobile Pre-rolls." });
+        conversation.push({ role: "seller", text: "Acknowledged. IPL Playoff inventory is currently at 92% sell-through. We have 8 premium mid-roll slots remaining for the eliminator and finals. Demand is high." });
+        conversation.push({ role: "buyer", text: `Understood. Our budget is ₹50 Lakhs with a hard CPM cap of ₹1,500. Can you guarantee the ₹1,500 rate for the CTV mid-rolls?` });
+        conversation.push({ role: "seller", text: "Our standard rate for Playoff CTV is ₹1,850. However, given the multi-slot volume for Prime Day, we can offer a package deal at ₹1,480 CPM, provided the Mobile Pre-rolls are bundled at ₹280 CPM." });
+        conversation.push({ role: "buyer", text: "The ₹1,480 CTV rate is acceptable. Does the bundle include competitive exclusion for other e-commerce brands during the break?" });
+        conversation.push({ role: "seller", text: "Yes, our Yield Orchestrator will enforce a 2-slot gap for e-commerce competitors. Brand safety validation for Amazon Prime creatives is already pre-cleared by our Llama-3 agent." });
+        conversation.push({ role: "buyer", text: "Deal confirmed. Finalizing order for ₹1,480 CTV and ₹280 Mobile Pre-roll bundle. Sending media buy request now." });
+      } else {
+        // Generic negotiation script
+        conversation.push({ role: "buyer", text: `Inquiring about ${evalItem.product_name}. We have a budget of ₹${(evalItem.recommended_budget / 100000).toFixed(1)}L.` });
+        conversation.push({ role: "seller", text: `Current CPM for ${evalItem.channel.toUpperCase()} is ₹${evalItem.cpm}. We have available capacity for your flight dates.` });
+        conversation.push({ role: "buyer", text: `We are looking for a 5% volume discount given our brand history.` });
+        conversation.push({ role: "seller", text: `Agreed. We can apply a 5% discount, bringing the effective CPM to ₹${Math.floor(evalItem.cpm * 0.95)}.` });
+        conversation.push({ role: "buyer", text: "Terms accepted. Proceeding to execution." });
+      }
+
+      events.push({
+        timestamp: addMinutes(1 + idx),
+        phase: 'negotiate',
+        phaseLabel: 'Agent Negotiation',
+        agentName: 'Negotiation Agent',
+        agentColor: '#8b5cf6',
+        toolName: 'negotiate_terms',
+        icon: '🤝',
+        title: `Negotiating with ${evalItem.publisher}: ${evalItem.product_name}`,
+        details: {
+          status: "Agreement Reached",
+          publisher: evalItem.publisher,
+          product: evalItem.product_name,
+          conversation: conversation,
+          final_terms: {
+            cpm: isJioHotstar && isAmazon && isIPL ? "₹1,480 (CTV) / ₹280 (Mobile)" : `₹${Math.floor(evalItem.cpm * 0.95)}`,
+            delivery: "Guaranteed",
+            brand_safety: "Verified",
+          },
+          transport: `JSON-RPC 2.0 → localhost:${port}/mcp`,
+        },
+        contextEngineering: [],
+        tokenUsage: {
+          prompt: 850,
+          completion: 420,
+          total: 1270,
+          cost_inr: (1270 / 1_000_000) * 0.15 * 95
+        }
+      });
+    });
+  }
+
   const directAllocations = allocations.filter(a => a.buy_type === 'direct');
   const exchangeAllocations = allocations.filter(a => a.buy_type === 'exchange');
 
@@ -716,6 +796,7 @@ export const generateBuyerFeed = (agentId, agentData, campaignPrompt = '') => {
     directAllocations.forEach((alloc, idx) => {
       const port = SELLER_PORTS[alloc.publisher] || 9000;
       const buyId = `mb-${agentId.substring(0, 2)}${String(idx + 1).padStart(2, '0')}-${Math.floor(rand() * 9999).toString().padStart(4, '0')}`;
+      alloc.buyId = buyId;
 
       events.push({
         timestamp: addMinutes(2 + idx),
@@ -827,6 +908,7 @@ export const generateBuyerFeed = (agentId, agentData, campaignPrompt = '') => {
       wonBids.forEach((alloc, idx) => {
         const port = SELLER_PORTS[alloc.publisher] || 9000;
         const buyId = `rtb-${agentId.substring(0, 2)}${String(idx + 1).padStart(2, '0')}-${Math.floor(rand() * 9999).toString().padStart(4, '0')}`;
+        alloc.buyId = buyId;
 
         events.push({
           timestamp: addMinutes(1 + idx),
@@ -865,6 +947,13 @@ export const generateBuyerFeed = (agentId, agentData, campaignPrompt = '') => {
     const spend = Math.floor(alloc.budget * (0.88 + rand() * 0.12));
     const roas = parseFloat((3.5 + rand() * 4.0).toFixed(1));
     const deliveryPct = ((impressions / ((alloc.budget / alloc.cpm) * 1000)) * 100).toFixed(1);
+    
+    // Calculate progress based on flight dates
+    let progressLabel = "Monitoring active";
+    let snapshotDate = addMinutes(1440 * (idx + 1)); // One day later per item
+    if (promptIntent.flightPeriod) {
+      progressLabel = `Day ${idx + 3} of 15 (Flight: ${promptIntent.flightPeriod.start} - ${promptIntent.flightPeriod.end})`;
+    }
 
     events.push({
       timestamp: addMinutes(10 + idx * 3),
@@ -872,15 +961,16 @@ export const generateBuyerFeed = (agentId, agentData, campaignPrompt = '') => {
       phaseLabel: 'Delivery Monitoring',
       toolName: 'get_media_buy_delivery',
       icon: '📊',
-      title: `Delivery check: ${alloc.publisher} — ${deliveryPct}% delivered, ROAS ${roas}x`,
+      title: `Delivery check: ${alloc.publisher} — ${deliveryPct}% delivered. ${progressLabel}`,
       details: {
+        snapshot_date: new Date(snapshotDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
         request: {
           method: "tools/call",
           params: {
             name: "get_media_buy_delivery",
             arguments: {
               account: { account_id: "test_account" },
-              media_buy_ids: [`mb-${agentId.substring(0, 2)}${String(idx + 1).padStart(2, '0')}`],
+              media_buy_ids: [alloc.buyId || `mb-${agentId.substring(0, 2)}${String(idx + 1).padStart(2, '0')}`],
             },
           },
         },

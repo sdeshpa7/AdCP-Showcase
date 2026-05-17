@@ -48,6 +48,9 @@ const hashString = (str) => {
 const SELLER_AGENTS = {
   orchestrator: { name: 'Orchestrator', icon: '🎯', color: '#f59e0b', usesLLM: true, model: 'gemma-2-27b-it' },
   discovery:    { name: 'Discovery Agent', icon: '🔍', color: '#3b82f6', usesLLM: true, model: 'gemma-2-27b-it' },
+  catalog:      { name: 'Catalog Agent', icon: '📦', color: '#3b82f6', usesLLM: true, model: 'gemma-2-27b-it' },
+  exchange:     { name: 'Exchange Agent', icon: '⚡', color: '#ef4444', usesLLM: true, model: 'gemma-2-27b-it' },
+  validation:   { name: 'Validation Agent', icon: '🛡️', color: '#8b5cf6', usesLLM: true, model: 'gemma-2-27b-it' },
   evaluation:   { name: 'Evaluation Agent', icon: '🧠', color: '#8b5cf6', usesLLM: true, model: 'gemma-2-27b-it' },
   budget:       { name: 'Budget Agent', icon: '💰', color: '#f97316', usesLLM: true, model: 'gemma-2-27b-it' },
   rtb:          { name: 'RTB Agent', icon: '⚡', color: '#ef4444', usesLLM: true, model: 'gemma-2-27b-it' },
@@ -514,3 +517,223 @@ export const generateSellerFeed = (publisherId, publisherData) => {
 
   return events;
 };
+
+export const generateSellerForecastFeed = (publisherId, publisherData, strategyPrompt = '') => {
+  const meta = PUBLISHER_META[publisherId];
+  if (!meta) return [];
+
+  const rand = seededRandom(hashString(publisherId + SYSTEM_DATE + 'sellerforecast'));
+  const events = [];
+  const now = new Date(SYSTEM_DATE);
+  let ts = new Date(now);
+  ts.setHours(9, 0, 0, 0);
+
+  const addMinutes = (min) => {
+    ts = new Date(ts.getTime() + min * 60000);
+    return ts.toISOString();
+  };
+  const monoWindow = 4200;
+
+  // ── Orchestrator Lane ───────────────────────────────────────────────
+  events.push(makeSellerLane('orchestrator', 290, monoWindow, ['strategy_prompt', 'product_catalog', 'baseline_yield']));
+
+  events.push({
+    timestamp: addMinutes(0),
+    phase: 'init',
+    phaseLabel: 'Strategy Evaluation',
+    toolName: null,
+    icon: '🔮',
+    title: `${meta.name} Strategy Evaluation — simulating yield and buyer impact (Evaluation Mode)`,
+    details: {
+      mode: 'EVALUATION',
+      strategy_intent: strategyPrompt || 'Optimize Connected TV yield and prioritize e-commerce partners.',
+      sub_agents: ['🎯 Orchestrator', '📦 Catalog Agent', '⚡ Exchange Agent', '🛡️ Validation Agent'],
+      side_effects: 'NONE — simulation only, no actual floor price changes deployed',
+    },
+    contextEngineering: [],
+    tokenUsage: null,
+  });
+
+  // Handoff to Catalog
+  events.push(makeSellerHandoff('orchestrator', 'catalog', 240, 'Strategy goals + catalog slots'));
+
+  // ── Catalog Lane ───────────────────────────────────────────────────
+  events.push(makeSellerLane('catalog', 480, monoWindow, ['product_catalog', 'audience_segments', 'strategic_brief']));
+
+  events.push({
+    timestamp: addMinutes(2),
+    phase: 'serve',
+    phaseLabel: 'Inventory Impact',
+    toolName: 'get_products',
+    icon: '📦',
+    title: `Scoring inventory slots against new strategy criteria`,
+    details: {
+      strategy_relevance: {
+        ctv_premium_slots: 'HIGH — Targeted for 15% floor premium',
+        mobile_slots: 'MODERATE — Backfill and volume support',
+        website_slots: 'LOW — Standard baseline maintained',
+      },
+      estimated_demand_impact: 'Stable — Priority e-commerce discounts expected to offset higher CTV floor risks.',
+    },
+    contextEngineering: [{
+      strategy: "Strategic Catalog Scoring",
+      description: "Pre-evaluates slot compatibility with the new prompt, reducing active negotiation loops.",
+      tokensSaved: 480,
+    }],
+    tokenUsage: null,
+  });
+
+  // Handoff to Exchange
+  events.push(makeSellerHandoff('catalog', 'exchange', 180, 'Inventory scores for pricing update'));
+
+  // ── Exchange Agent Lane ────────────────────────────────────────────
+  events.push(makeSellerLane('exchange', 350, monoWindow, ['demand_curves', 'cpm_floors', 'historical_ecpm']));
+
+  // Generate publisher-specific slot forecast details
+  let forecasts = [];
+  let estRevenue = 0;
+  let baselineRevenue = 0;
+  
+  if (publisherId === 'jiohotstar') {
+    forecasts = [
+      { name: 'CTV Mid-roll (Live IPL / EPL)', platform: 'CTV', baselineFloor: 1200, optimizedFloor: 1380, fillRate: 94, estRevenue: 18500000, baselineRev: 16000000 },
+      { name: 'CTV Pre-roll (Movies & Series)', platform: 'CTV', baselineFloor: 650, optimizedFloor: 747, fillRate: 91, estRevenue: 8200000, baselineRev: 7200000 },
+      { name: 'Mobile Mid-roll (Live IPL / EPL)', platform: 'Mobile', baselineFloor: 480, optimizedFloor: 480, fillRate: 93, estRevenue: 11200000, baselineRev: 11200000 },
+      { name: 'Mobile Pre-roll (Entertainment VOD)', platform: 'Mobile', baselineFloor: 250, optimizedFloor: 250, fillRate: 95, estRevenue: 6200000, baselineRev: 6200000 },
+    ];
+  } else if (publisherId === 'myntra') {
+    forecasts = [
+      { name: 'Checkout Flow Billboard', platform: 'Mobile', baselineFloor: 350, optimizedFloor: 402, fillRate: 92, estRevenue: 4500000, baselineRev: 4000000 },
+      { name: 'App Home Billboard (Hero Banner)', platform: 'Mobile', baselineFloor: 180, optimizedFloor: 180, fillRate: 94, estRevenue: 3200000, baselineRev: 3200000 },
+    ];
+  } else if (publisherId === 'ndtv') {
+    forecasts = [
+      { name: 'Billboard (NDTV Profit / Business)', platform: 'Website', baselineFloor: 250, optimizedFloor: 287, fillRate: 90, estRevenue: 2800000, baselineRev: 2500000 },
+      { name: 'Video Mid-roll (Prime Time Shows)', platform: 'Website', baselineFloor: 200, optimizedFloor: 200, fillRate: 92, estRevenue: 1500000, baselineRev: 1500000 },
+    ];
+  } else if (publisherId === 'espncricinfo') {
+    forecasts = [
+      { name: 'Scoreboard Billboard (Live Match Pages)', platform: 'Website', baselineFloor: 220, optimizedFloor: 253, fillRate: 93, estRevenue: 6400000, baselineRev: 5600000 },
+      { name: 'Video Pre-roll (Match Highlights)', platform: 'Website', baselineFloor: 280, optimizedFloor: 280, fillRate: 91, estRevenue: 4200000, baselineRev: 4200000 },
+    ];
+  } else { // amazonin
+    forecasts = [
+      { name: 'Video Mid-roll (Prime Video Web)', platform: 'Website', baselineFloor: 400, optimizedFloor: 460, fillRate: 92, estRevenue: 9800000, baselineRev: 8600000 },
+      { name: 'Homepage Billboard (Hero Carousel)', platform: 'Website', baselineFloor: 250, optimizedFloor: 250, fillRate: 94, estRevenue: 8500000, baselineRev: 8500000 },
+    ];
+  }
+
+  forecasts.forEach(f => {
+    estRevenue += f.estRevenue;
+    baselineRevenue += f.baselineRev;
+  });
+
+  const yieldUplift = parseFloat(((estRevenue - baselineRevenue) / baselineRevenue * 100).toFixed(1));
+  const avgECPM = Math.round(forecasts.reduce((sum, f) => sum + f.optimizedFloor, 0) / forecasts.length);
+
+  events.push({
+    timestamp: addMinutes(4),
+    phase: 'optimize',
+    phaseLabel: 'Dynamic Floors Evaluated',
+    toolName: null,
+    icon: '⚡',
+    title: `Exchange Agent calculated optimal floors — projected +${yieldUplift}% yield growth`,
+    details: {
+      proposed_floor_changes: forecasts.map(f => ({
+        slot: f.name,
+        baseline: `₹${f.baselineFloor}`,
+        proposed: `₹${f.optimizedFloor}`,
+        change: f.optimizedFloor > f.baselineFloor ? `+${Math.round((f.optimizedFloor - f.baselineFloor)/f.baselineFloor*100)}%` : 'No change',
+      })),
+      fill_rate_projection: 'Target 92% maintained successfully via partner volume discount model.',
+    },
+    contextEngineering: [{
+      strategy: "Yield Forecasting Loop",
+      description: "Grok simulates pricing sensitivity across 5 buyer agents before committing floors.",
+      tokensSaved: 1200,
+    }],
+    tokenUsage: { prompt: 340, completion: 190, total: 530, costINR: 0.026 },
+  });
+
+  // Yield Forecast Card Event
+  events.push({
+    type: 'yield-forecast-card',
+    publisher: meta.name,
+    totals: {
+      estRevenue,
+      yieldUplift,
+      fillRate: 93,
+      avgECPM,
+      llmCalls: 3,
+      llmTokens: 1140,
+      llmCost: 0.057,
+    },
+    forecasts,
+  });
+
+  // Handoff to Validation
+  events.push(makeSellerHandoff('exchange', 'validation', 210, 'Yield metrics + partner discount parameters'));
+
+  // ── Validation Agent Lane ──────────────────────────────────────────
+  events.push(makeSellerLane('validation', 410, monoWindow, ['partner_deals', 'brand_verification', 'discount_rules']));
+
+  // Simulate evaluation against e-commerce priority brands
+  events.push({
+    timestamp: addMinutes(6),
+    phase: 'accept',
+    phaseLabel: 'Partner Validation',
+    toolName: 'create_media_buy',
+    icon: '🛡️',
+    title: `E-Commerce brand validation: Amazon & Flipkart prioritized`,
+    details: {
+      prioritized_partners: [
+        { brand: "Amazon.in", domain: "amazon.in", discount: "5% volume discount applied (Floor CTV Mid-roll: ₹1,311)" },
+        { brand: "Flipkart", domain: "flipkart.com", discount: "5% volume discount applied (Floor CTV Mid-roll: ₹1,311)" }
+      ],
+      other_brands: "Standard optimized floors applied (no preferred partner discount).",
+    },
+    contextEngineering: [{
+      strategy: "Selective Rulesets",
+      description: "Grok applies discount validator rules conditionally, bypassing heavy multi-agent negotiation.",
+      tokensSaved: 850,
+    }],
+    tokenUsage: { prompt: 270, completion: 110, total: 380, costINR: 0.019 },
+  });
+
+  // ── Session Summary ──
+  const totalTokensSaved = events.filter(e => e && e.type !== 'lane-start' && e.type !== 'handoff').reduce((sum, e) =>
+    sum + (e?.contextEngineering || []).reduce((s, ce) => s + (ce?.tokensSaved || 0), 0), 0);
+  const totalLLMTokens = events.filter(e => e && e.type !== 'lane-start' && e.type !== 'handoff').reduce((sum, e) =>
+    sum + (e?.tokenUsage?.total || 0), 0);
+  const totalLLMCost = events.filter(e => e && e.type !== 'lane-start' && e.type !== 'handoff').reduce((sum, e) =>
+    sum + (e?.tokenUsage?.costINR || 0), 0);
+  const llmCallCount = events.filter(e => e && e.tokenUsage && e.type !== 'lane-start' && e.type !== 'handoff').length;
+
+  events.push({
+    timestamp: addMinutes(8),
+    phase: 'summary',
+    phaseLabel: 'Evaluation Complete',
+    agentName: 'Seller Orchestrator',
+    agentColor: '#f59e0b',
+    toolName: null,
+    icon: '🏆',
+    title: `${meta.name} strategy evaluation complete — projected +${yieldUplift}% revenue growth`,
+    details: {
+      evaluation_metrics: {
+        optimized_revenue: `₹${(estRevenue / 10000000).toFixed(2)} Cr`,
+        baseline_revenue: `₹${(baselineRevenue / 10000000).toFixed(2)} Cr`,
+        uplift: `+${yieldUplift}%`,
+        fill_rate: '93%',
+        llm_calls: llmCallCount,
+        llm_tokens: totalLLMTokens,
+        llm_cost: `₹${totalLLMCost.toFixed(2)}`,
+        tokens_saved: totalTokensSaved.toLocaleString(),
+      },
+    },
+    contextEngineering: [],
+    tokenUsage: null,
+  });
+
+  return events;
+};
+

@@ -980,7 +980,24 @@ function App() {
                                       </div>
                                       {isExp && evt.details && (
                                         <div className="feed-expand">
-                                          {JSON.stringify(evt.details, null, 2)}
+                                          {evt.details.conversation ? (
+                                            <div className="negotiation-chat">
+                                              {evt.details.conversation.map((msg, midx) => (
+                                                <div key={midx} className={`chat-bubble ${msg.role}`}>
+                                                  <div className="chat-role">{msg.role === 'buyer' ? 'Buyer Agent' : 'Seller Agent'}</div>
+                                                  <div className="chat-text">{msg.text}</div>
+                                                </div>
+                                              ))}
+                                              {evt.details.final_terms && (
+                                                <div className="final-terms">
+                                                  <strong>Final Terms:</strong>
+                                                  <pre>{JSON.stringify(evt.details.final_terms, null, 2)}</pre>
+                                                </div>
+                                              )}
+                                            </div>
+                                          ) : (
+                                            <pre>{JSON.stringify(evt.details, null, 2)}</pre>
+                                          )}
                                         </div>
                                       )}
                                     </div>
@@ -1633,7 +1650,7 @@ function App() {
 
                       allBuys.forEach(buy => {
                         let key = 'Other';
-                        if (mixDimension === 'brands') key = buy.brand;
+                        if (mixDimension === 'brands') key = buy.brand || buy.brand_name || 'Unknown';
                         else if (mixDimension === 'publishers') key = buy.publisher;
                         else if (mixDimension === 'campaigns') key = (buy.name || "Unknown").split(' - ')[0];
                         else if (mixDimension === 'devices') key = buy.device;

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { usePublisherData } from './hooks/usePublisherData';
 import { useViewershipData } from './hooks/useViewershipData';
 import { SYSTEM_DATE } from './hooks/useAgentData';
-import { generateSellerFeed } from './hooks/usePublisherIntelligenceFeed';
+import { generateSellerFeed, generateSellerForecastFeed } from './hooks/usePublisherIntelligenceFeed';
 import {
   Activity,
   IndianRupee,
@@ -34,7 +34,8 @@ import {
   BarChart3,
   Globe,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Eye
 } from 'lucide-react';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, BarChart, Bar, XAxis, YAxis } from 'recharts';
 
@@ -77,6 +78,7 @@ function PublisherApp() {
   const [isSimulating, setIsSimulating] = useState(false);
   const [simulationEvents, setSimulationEvents] = useState([]);
   const [allFeedEvents, setAllFeedEvents] = useState([]);
+  const [forecastMode, setForecastMode] = useState(false);
   const feedTimelineRef = useRef(null);
   const simulationTimerRef = useRef(null);
 
@@ -99,6 +101,7 @@ function PublisherApp() {
     setSimulationEvents([]);
     setAllFeedEvents([]);
     setIsSimulating(false);
+    setForecastMode(false);
     if (simulationTimerRef.current) clearTimeout(simulationTimerRef.current);
   }, [activePublisherId]);
 
@@ -465,8 +468,8 @@ function PublisherApp() {
                       </div>
                     )}
 
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '2rem', alignItems: 'center' }}>
-                      <div style={{ textAlign: 'right' }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', alignItems: 'center' }}>
+                      <div style={{ textAlign: 'right', marginRight: 'auto' }}>
                         <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '0.2rem' }}>Est. Strategy Tokens</div>
                         <div style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', fontFamily: 'monospace' }}>
                           {(1500 + Math.floor(campaignPrompt.length * 0.6)).toLocaleString()} <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>tokens</span>
@@ -475,6 +478,69 @@ function PublisherApp() {
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <div className="status-dot active" style={{ background: 'var(--accent-red)' }}></div> Seller Agent Ready
                       </div>
+                      
+                      {/* 🔮 Evaluate Strategy Button */}
+                      <button
+                        disabled={isSimulating}
+                        onClick={() => {
+                          if (isSimulating) return;
+                          setForecastMode(true);
+                          const events = generateSellerForecastFeed(activePublisherId, activeData, campaignPrompt);
+                          setAllFeedEvents(events);
+                          setSimulationEvents([]);
+                          setExpandedFeedEvent(null);
+                          setIsSimulating(true);
+                          let idx = 0;
+                          const streamNext = () => {
+                            if (idx < events.length) {
+                              setSimulationEvents(prev => [...prev, events[idx]]);
+                              idx++;
+                              const lastEvt = events[idx - 1];
+                              const delay = lastEvt?.type === 'lane-start' ? 400 :
+                                            lastEvt?.type === 'handoff' ? 600 :
+                                            lastEvt?.type === 'yield-forecast-card' ? 1500 :
+                                            lastEvt?.type === 'summary-table' ? 1500 :
+                                            lastEvt?.phase === 'optimize' ? 1500 :
+                                            lastEvt?.phase === 'accept' ? 1200 :
+                                            lastEvt?.phase === 'summary' ? 2000 : 800;
+                              simulationTimerRef.current = setTimeout(streamNext, delay);
+                            } else {
+                              setIsSimulating(false);
+                            }
+                          };
+                          simulationTimerRef.current = setTimeout(streamNext, 500);
+                        }}
+                        style={{
+                          padding: '12px 24px',
+                          background: 'rgba(245, 158, 11, 0.1)',
+                          border: '1px solid rgba(245, 158, 11, 0.3)',
+                          borderRadius: '10px',
+                          color: '#f59e0b',
+                          fontSize: '0.95rem',
+                          fontWeight: 700,
+                          cursor: isSimulating ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          transition: 'all 0.2s',
+                          boxShadow: '0 4px 12px rgba(245, 158, 11, 0.05)',
+                        }}
+                        onMouseOver={(e) => {
+                          if (isSimulating) return;
+                          e.currentTarget.style.background = 'rgba(245, 158, 11, 0.15)';
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                        }}
+                        onMouseOut={(e) => {
+                          if (isSimulating) return;
+                          e.currentTarget.style.background = 'rgba(245, 158, 11, 0.1)';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                        }}
+                      >
+                        <Eye size={18} />
+                        {isSimulating && forecastMode ? 'Evaluating...' : 'Evaluate Strategy'}
+                      </button>
+
+                      {/* 🚀 Get Campaign Button */}
                       <button
                         onClick={() => {
                           if (requiresHITL && !isAuthorized) {
@@ -482,7 +548,7 @@ function PublisherApp() {
                             return;
                           }
                           if (isSimulating) return;
-                          // Generate all events and start streaming them
+                          setForecastMode(false);
                           const events = generateSellerFeed(activePublisherId, activeData);
                           setAllFeedEvents(events);
                           setSimulationEvents([]);
@@ -508,24 +574,32 @@ function PublisherApp() {
                           simulationTimerRef.current = setTimeout(streamNext, 500);
                         }}
                         style={{
-                          padding: '12px 32px',
+                          padding: '12px 28px',
                           background: (requiresHITL && !isAuthorized) ? 'var(--text-muted)' : 'var(--accent-red)',
                           color: '#fff',
                           border: 'none',
                           borderRadius: '10px',
-                          fontSize: '1rem',
+                          fontSize: '0.95rem',
                           fontWeight: 700,
                           cursor: (requiresHITL && !isAuthorized) ? 'not-allowed' : 'pointer',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '10px',
+                          gap: '8px',
                           transition: 'all 0.2s',
-                          boxShadow: (requiresHITL && !isAuthorized) ? 'none' : '0 8px 24px rgba(239, 68, 68, 0.3)',
+                          boxShadow: (requiresHITL && !isAuthorized) ? 'none' : '0 8px 24px rgba(239, 68, 68, 0.2)',
                           opacity: (requiresHITL && !isAuthorized) ? 0.6 : 1
+                        }}
+                        onMouseOver={(e) => {
+                          if (requiresHITL && !isAuthorized) return;
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                        }}
+                        onMouseOut={(e) => {
+                          if (requiresHITL && !isAuthorized) return;
+                          e.currentTarget.style.transform = 'translateY(0)';
                         }}
                       >
                         <Zap size={18} />
-                        {isSimulating ? 'Agent Running...' : (simulationEvents.length > 0 ? 'Re-run Strategy' : 'Get Campaign')}
+                        {isSimulating && !forecastMode ? 'Agent Running...' : (simulationEvents.length > 0 && !forecastMode ? 'Re-run Strategy' : 'Get Campaign')}
                       </button>
                     </div>
                   </>
@@ -563,8 +637,8 @@ function PublisherApp() {
                 <div className="intelligence-feed" style={{ marginTop: '2rem' }}>
                   <div className="feed-header">
                     <div className="feed-header-title">
-                      <div className="feed-live-dot" style={isSimulating ? {} : { background: '#6b7280', boxShadow: 'none', animation: 'none' }} />
-                      {isSimulating ? 'Live Yield Intelligence — LIVE' : 'Live Yield Intelligence — Complete'}
+                      <div className="feed-live-dot" style={isSimulating ? (forecastMode ? { background: '#f59e0b', boxShadow: '0 0 8px rgba(245,158,11,0.6)' } : {}) : { background: '#6b7280', boxShadow: 'none', animation: 'none' }} />
+                      {isSimulating ? (forecastMode ? 'Yield Strategy Evaluation — LIVE' : 'Live Yield Intelligence — LIVE') : (forecastMode ? 'Yield Strategy Evaluation — Complete' : 'Live Yield Intelligence — Complete')}
                     </div>
                     <div className="feed-stats">
                       <div className="feed-stat">
@@ -626,6 +700,66 @@ function PublisherApp() {
                             {isExp && evt.details && (
                               <div className="feed-json-block" style={{ width: '100%' }}>{JSON.stringify(evt.details, null, 2)}</div>
                             )}
+                          </div>
+                        );
+                      }
+                      // Yield Forecast Card Event
+                      if (evt.type === 'yield-forecast-card') {
+                        const t = evt.totals;
+                        const fmtCr = (v) => v >= 10000000 ? `₹${(v/10000000).toFixed(2)} Cr` : `₹${(v/100000).toFixed(1)} L`;
+                        const fmtM = (v) => v >= 1000000 ? `${(v/1000000).toFixed(1)}M` : `${(v/1000).toFixed(0)}K`;
+                        return (
+                          <div key={idx} className="forecast-card" style={{ animation: 'fadeIn 0.5s ease-out', border: '1px solid rgba(245, 158, 11, 0.2)', background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.05) 0%, rgba(245, 158, 11, 0.01) 100%)', padding: '1.5rem', borderRadius: '12px', margin: '1rem 0' }}>
+                            <div className="forecast-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
+                              <div className="forecast-title" style={{ color: '#f59e0b', fontWeight: 800, fontSize: '1.1rem' }}>📊 Yield Optimization Forecast — {evt.publisher}</div>
+                              <span className="forecast-badge" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.2)', padding: '4px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600 }}>Strategy Simulation Only</span>
+                            </div>
+                            <div className="forecast-kpis" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+                              <div className="forecast-kpi" style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
+                                <div className="forecast-kpi-label" style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.3rem' }}>Est. Total Revenue</div>
+                                <div className="forecast-kpi-value" style={{ color: '#10b981', fontSize: '1.3rem', fontWeight: 800 }}>{fmtCr(t.estRevenue)}</div>
+                              </div>
+                              <div className="forecast-kpi" style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
+                                <div className="forecast-kpi-label" style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.3rem' }}>Yield Uplift</div>
+                                <div className="forecast-kpi-value" style={{ color: '#10b981', fontSize: '1.3rem', fontWeight: 800 }}>+{t.yieldUplift}%</div>
+                              </div>
+                              <div className="forecast-kpi" style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
+                                <div className="forecast-kpi-label" style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.3rem' }}>Target Fill Rate</div>
+                                <div className="forecast-kpi-value" style={{ color: '#fff', fontSize: '1.3rem', fontWeight: 800 }}>{t.fillRate}%</div>
+                              </div>
+                              <div className="forecast-kpi" style={{ background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
+                                <div className="forecast-kpi-label" style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.3rem' }}>Average eCPM</div>
+                                <div className="forecast-kpi-value" style={{ color: '#f59e0b', fontSize: '1.3rem', fontWeight: 800 }}>₹{t.avgECPM}</div>
+                              </div>
+                            </div>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '1rem', fontSize: '0.85rem' }}>
+                              <thead>
+                                <tr style={{ borderBottom: '1px solid var(--border-light)', textAlign: 'left', color: 'var(--text-muted)' }}>
+                                  <th style={{ padding: '8px' }}>Ad Slot / Inventory</th>
+                                  <th style={{ padding: '8px' }}>Platform</th>
+                                  <th style={{ padding: '8px' }}>Baseline Floor</th>
+                                  <th style={{ padding: '8px' }}>Optimized Floor</th>
+                                  <th style={{ padding: '8px' }}>Est. Fill Rate</th>
+                                  <th style={{ padding: '8px' }}>Est. Revenue</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {evt.forecasts.map((f, fi) => (
+                                  <tr key={fi} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <td style={{ padding: '10px 8px', color: '#fff', fontWeight: 600 }}>{f.name}</td>
+                                    <td style={{ padding: '10px 8px' }}><span className="feed-phase-badge" data-phase="serve" style={{ textTransform: 'uppercase', fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px' }}>{f.platform}</span></td>
+                                    <td style={{ padding: '10px 8px', color: 'var(--text-muted)' }}>₹{f.baselineFloor}</td>
+                                    <td style={{ padding: '10px 8px', color: '#10b981', fontWeight: 700 }}>₹{f.optimizedFloor}</td>
+                                    <td style={{ padding: '10px 8px', color: '#fff' }}>{f.fillRate}%</td>
+                                    <td style={{ padding: '10px 8px', color: '#10b981', fontWeight: 700 }}>{fmtCr(f.estRevenue)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                            <div className="forecast-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-light)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                              <span>⚡ {t.llmCalls} strategy calls · {t.llmTokens.toLocaleString()} tokens · ₹{t.llmCost.toFixed(2)}</span>
+                              <span className="safe" style={{ color: '#f59e0b', fontWeight: 600 }}>📝 Evaluation Mode — no floor pricing changes deployed yet.</span>
+                            </div>
                           </div>
                         );
                       }

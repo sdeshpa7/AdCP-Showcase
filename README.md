@@ -108,10 +108,12 @@ npm run publisher
 
 ## 📊 Core Features
 
-- **Prompt-Aware Discovery**: Target "IPL Playoffs on JioHotstar" and watch the agent intelligently filter out irrelevant inventory.
-- **Direct-First Buying**: Defaults to Guaranteed Direct buys unless "Open Exchange" is explicitly requested in the prompt.
-- **Historical Analysis**: 3 years of persistent transaction data available in the dashboard charts, fetched from the SQLite backend.
-- **Decoupled Architecture**: Agents remain pure AdCP actors; persistence is handled by the Demo Orchestrator and Transaction API.
+- **🔮 Publisher Strategy Evaluation**: A dedicated dry-run mode for publishers to preview eCPM optimization, partner discounts, fill-rate forecasts, and projected total yield uplifts (+%) in a specialized `yield-forecast-card` prior to launching configurations on the server.
+- **⚡ Real-Time Flight Pacing**: Injects natural language date-parsing (e.g., *"May 15th to May 30th"*) into campaign briefs, dynamically calculating and displaying pacing cycles (e.g., *"Day 3 of 15"*) and snaps in the delivery monitoring feed.
+- **🔍 Prompt-Aware Discovery**: Target highly specific slots like *"IPL Playoffs on Connected TV"* and watch the buyer agent autonomously scan and select only contextually aligned channels.
+- **🛡️ Secure Sub-Agent Registry**: A fully active, verified registry mapping `catalog`, `exchange`, and `validation` sub-agent nodes for transparent execution logs.
+- **📈 Advanced Performance Aggregators**: Robust, database-driven ranking cards (like *Top Performers*) pulling real-time aggregate brand and publisher metrics dynamically using complete SQLite fallbacks.
+- **💾 Decoupled Persistence**: Historical data across 3 years is stored locally in `adcp.db` and served dynamically via the FastAPI transaction backend.
 
 ---
 

@@ -97,6 +97,7 @@ async def get_agent_data(agent_id: str):
         # Remap DB field names to frontend field names
         deal = buy.pop('deal_type', 'direct')
         buy['buy_type'] = 'exchange' if deal == 'open_exchange' else 'direct'
+        buy['brand'] = buy.get('brand_name', '')
         
         # Calculate aggregates
         perf = buy['performance']
@@ -212,6 +213,7 @@ async def get_publisher_data(pub_name: str):
         # Remap buy_type
         deal = buy.pop('deal_type', 'direct')
         buy['buy_type'] = 'exchange' if deal == 'open_exchange' else 'direct'
+        buy['brand'] = buy.get('brand_name', '')
         
         perf = buy['performance']
         total_spent += perf.get('spend', 0)

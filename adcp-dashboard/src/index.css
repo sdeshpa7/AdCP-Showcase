@@ -870,3 +870,73 @@ body {
 }
 .feed-json-block::-webkit-scrollbar { width: 4px; }
 .feed-json-block::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+/* Negotiation Chat Styles */
+.negotiation-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px 5px;
+}
+
+.chat-bubble {
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  position: relative;
+  animation: fadeInChat 0.3s ease;
+}
+
+.chat-bubble.buyer {
+  align-self: flex-start;
+  background: rgba(59, 130, 246, 0.1);
+  border-left: 3px solid var(--accent-blue);
+  color: #e2e8f0;
+}
+
+.chat-bubble.seller {
+  align-self: flex-end;
+  background: rgba(139, 92, 246, 0.1);
+  border-right: 3px solid #8b5cf6;
+  color: #e2e8f0;
+  text-align: right;
+}
+
+.chat-role {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-bottom: 4px;
+  letter-spacing: 0.5px;
+  opacity: 0.8;
+}
+
+.chat-bubble.buyer .chat-role { color: var(--accent-blue); }
+.chat-bubble.seller .chat-role { color: #a78bfa; }
+
+.final-terms {
+  margin-top: 15px;
+  padding: 12px;
+  background: rgba(34, 197, 94, 0.05);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  border-radius: 8px;
+  font-size: 0.8rem;
+}
+
+.final-terms strong {
+  color: #4ade80;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.final-terms pre {
+  margin: 0;
+  color: #cbd5e1;
+}
+
+@keyframes fadeInChat {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
