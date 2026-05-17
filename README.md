@@ -89,20 +89,42 @@ This orchestrates:
 4. **Campaign Execution**: Agents begin their autonomous workflow.
 
 ### Step 2: Launch the Dashboards
-In two separate terminals:
+In two separate terminals inside `frontend/adcp-dashboard/`:
 
 ```bash
-# Terminal 1: Advertiser Portal
-cd adcp-dashboard
+# Terminal 1: Advertiser Portal (Default: Port 5173)
 npm run dev
 
-# Terminal 2: Publisher Portal
-cd adcp-dashboard
+# Terminal 2: Publisher Portal (Default: Port 5177 for Safari compatibility)
 npm run publisher
 ```
 
-- **Advertiser Portal**: `http://localhost:5173/` (or the next available port)
-- **Publisher Portal**: `http://localhost:5174/` (or the next available port)
+- **Advertiser Portal**: **[http://localhost:5173](http://localhost:5173)**
+- **Publisher Portal**: **[http://localhost:5177](http://localhost:5177)**
+- **Backend API Server**: **[http://localhost:8010](http://localhost:8010)**
+
+---
+
+## 📡 Live Feeds & Interactive Cockpits
+
+### 🏢 1. Live Intelligence Feed (Advertiser DSP Cockpit)
+*   **How to Access:**
+    *   Navigate to **[http://localhost:5173](http://localhost:5173)** in your browser.
+    *   The **Strategic Intelligence Portal** operates dynamically on top of the Advertiser Dashboard, showcasing live multi-agent evaluations.
+*   **What Happens in Detail:**
+    *   **Context Ingestion:** The Advertiser Agent (DSP running `Gemma-3-27b-it`) ingests your active campaign briefs, mapping dynamic target criteria (e.g. Connected TV slots, category budgets).
+    *   **Surgical Context Pruning:** Before sending queries to the LLM, the pre-evaluation metadata filter scans and prunes non-matching publisher slots (saving ~190 tokens per slot), compressing the prompt context footprint by **85%**.
+    *   **Autonomous Evaluation:** The Gemma-3-27b-it reasoning model scores each qualified inventory slot on a strict `0-10` relevance scale based on category context and audience match.
+    *   **Real-Time Console Telemetry:** The dashboard renders a scrolling live console displaying step-by-step agent reasoning, active tool-calls (`get_products()`, `create_media_buy()`), and structured schema validation events.
+
+### 📰 2. Live Yield Feed (Publisher SSP Cockpit)
+*   **How to Access:**
+    *   Open **[http://localhost:5177](http://localhost:5177)** in Safari or Chrome.
+*   **What Happens in Detail:**
+    *   **Brand Safety Verification (Grok-3):** Upon receiving a bid request from the buyer agent, the Publisher Yield Orchestrator triggers `_brand_safety_check()`, prompting `Grok-3` to run a zero-shot compliance audit of the advertiser's reputation, domain, and competitive exclusions.
+    *   **eCPM Floor Pricing Optimization:** The SSP automatically verifies incoming bid pricing against dynamic, pacing-adjusted publisher floors, dynamically rejecting bids below thresholds to secure optimal monetization yields.
+    *   **Stateful Contract Execution:** Approved campaigns programmatically trigger `create_media_buy()`, secure-signing a programmatic contract committed directly to the central transaction database (`adcp.db`), instantly updating the publisher's live yield metrics.
+    *   **Live Revenue Telemetry:** Renders real-time eCPM averages, dynamic yield forecasts, active partner discount indexes, and natural language pacing flights (`Day X of Y`) pulling directly from SQLite ledger queries.
 
 ---
 
