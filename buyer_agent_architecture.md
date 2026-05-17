@@ -7,7 +7,14 @@ This document outlines the structural design and context engineering strategies 
 ## 📑 Presentation Slides & Handshake Diagrams (Clean 2D Vectors)
 *These images have been saved directly to your project root folder. You can save, download, and drop them directly into your PowerPoint / Google Slides pitch deck!*
 
-### 1. Master System Diagram: Buyer & Seller Handshake (Symmetrical Vector Architecture)
+### 1. Master System Diagram: Buyer & Seller Handshake (No Cutoffs)
+*A single, high-contrast visual showing both agents and their symmetrical client-server programmatic tools with nested skills:*
+
+![Unified AdCP Multi-Agent Presentation Schematic](adcp_unified_presentation_schematic.png)
+
+---
+
+### 2. Symmetrical Live-Rendered Vector Schematic (Interactive Diagram)
 *This is a live-rendered vector schematic mapping the symmetrical client-server programmatic tools and nested cognitive skills:*
 
 ```mermaid
