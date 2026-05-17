@@ -91,7 +91,7 @@ def create_buyer_diagram():
     desc3 = "Aggregates click-through CTR performance, registers impressions pacing ratios, and compiles optimization data feeds to verify active spending efficiencies."
     draw_wrapped_text(draw, desc3, 470, 820, 630, font_skill, "#5F6368", line_spacing=24)
 
-    img.save('/Users/sourabh/Documents/Publishing/AdCP/buyer_agent_presentation_schematic.png', 'PNG')
+    img.save('/Users/sourabh/Documents/Publishing/AdCP/docs/buyer_agent_presentation_schematic.png', 'PNG')
     print("Saved Buyer diagram with perfect text wrapping.")
 
 def create_seller_diagram():
@@ -161,7 +161,7 @@ def create_seller_diagram():
     desc4 = "Aggregates revenue yields, dynamic eCPM averages, and rankings of high-spending programmatic buyers for active publisher display cockpits."
     draw_wrapped_text(draw, desc4, 470, 780, 630, font_skill, "#5F6368", line_spacing=24)
 
-    img.save('/Users/sourabh/Documents/Publishing/AdCP/seller_agent_presentation_schematic.png', 'PNG')
+    img.save('/Users/sourabh/Documents/Publishing/AdCP/docs/seller_agent_presentation_schematic.png', 'PNG')
     print("Saved Seller diagram with perfect text wrapping.")
 
 if __name__ == '__main__':
