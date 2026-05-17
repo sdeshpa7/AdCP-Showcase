@@ -35,7 +35,7 @@ This section outlines the exact programmatic tools and modules used by both the 
 *   **Tool: `get_products()`**
     *   **Nested Skill:** *Brief Ingestion & Catalog Discovery* — Ingests campaign briefs, registers target seller endpoints, and queries the publisher's product catalog.
 *   **Tool: `create_media_buy()`**
-    *   **Nested Skill:** *LLM Relevance Scoring* — Passes discovered catalogs to `gemma-3-27b-it` to score context matches on a 0-10 scale.
+    *   **Nested Skill:** *LLM Relevance Scoring (via `evaluate_products()`)`* — Invokes `gemma-3-27b-it` to analyze and score discovered publisher inventories on a 0-10 contextual fit scale against campaign briefs.
     *   **Nested Skill:** *Relevance-Price Bid Negotiation* — Programmatically computes customized campaign bids/budgets based on slot value vs constraints.
     *   **Nested Skill:** *Pacing & Safety Controls (`BudgetManager`)* — Enforces safety spending caps, daily pacing buffers, and a maximum 50% single-publisher spend ceiling.
     *   **Nested Skill:** *Contract Signing & Execution* — Locks bids, validates package options, and programmatically signs/submits media buy transactions.
