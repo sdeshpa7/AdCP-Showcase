@@ -32,7 +32,7 @@ The system decomposes the monolithic ad-stack into specialized sub-agents to red
 
 ## 🛠️ Tech Stack
 
-- **Backend**: Python 3.14, FastAPI, AdCP SDK (MCP v5+).
+- **Backend**: Python 3.12+, FastAPI, AdCP SDK (MCP v5+), with structured packaging and dependency management via **[pyproject.toml](backend/pyproject.toml)**.
 - **LLMs**: Google Gemini (Gemma-3-27b-it).
 - **Database**: SQLite with a dedicated **FastAPI Transaction API** (Port 8010).
 - **Frontend**: React 19, Vite, Recharts, Vanilla CSS.
