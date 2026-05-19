@@ -164,7 +164,7 @@ npm run publisher
 ---
 
 ## 📝 High-Impact Simulation Prompts (Test Scenarios)
-You can directly test the multi-agent negotiation, brand safety evaluation, and dynamic floor pricing engines by copy-pasting these copyable briefs into the interactive portals. See the full scenario analysis in **[docs/sample_prompts.md](file:///Users/sourabh/Documents/Publishing/AdCP/docs/sample_prompts.md)**.
+You can directly test the multi-agent negotiation, brand safety evaluation, and dynamic floor pricing engines by copy-pasting these copyable briefs into the interactive portals. See the full scenario analysis in **[docs/sample_prompts.md](docs/sample_prompts.md)**.
 
 ### 🏢 Buyer Agent (DSP) Briefs
 *   **Prime Day Placement (CTV & Targeted):**
