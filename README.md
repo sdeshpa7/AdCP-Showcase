@@ -86,14 +86,24 @@ npm install
 ```
 
 ### 3. Environment Configuration
-Create a `.env` file in the root directory:
-```env
-# Protocol Auth
-ADCP_AUTH_TOKEN=your_random_secret_token
+Copy the provided `.env.example` template to `.env` and populate your secure LLM API and Protocol keys:
 
-# LLM Config
-GEMINI_API_KEY=your_google_ai_studio_key
-LLM_MODEL=gemma-3-27b-it
+#### 🍎 Linux & macOS (Terminal)
+```bash
+# Copy template from root
+cp .env.example .env
+```
+
+#### 🪟 Windows (CMD)
+```cmd
+:: Copy template from root
+copy .env.example .env
+```
+
+#### 🪟 Windows (PowerShell)
+```powershell
+# Copy template from root
+cp .env.example .env
 ```
 
 ---
