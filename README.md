@@ -163,6 +163,23 @@ npm run publisher
 
 ---
 
+## 📝 High-Impact Simulation Prompts (Test Scenarios)
+You can directly test the multi-agent negotiation, brand safety evaluation, and dynamic floor pricing engines by copy-pasting these copyable briefs into the interactive portals. See the full scenario analysis in **[docs/sample_prompts.md](file:///Users/sourabh/Documents/Publishing/AdCP/docs/sample_prompts.md)**.
+
+### 🏢 Buyer Agent (DSP) Briefs
+*   **Prime Day Placement (CTV & Targeted):**
+    > *“Launch a premium awareness campaign for Amazon Prime Day. Target high-engagement slots on JioHotstar specifically during the IPL Playoffs. We are looking for CTV Video Mid-rolls and Mobile Pre-rolls. Budget: ₹50 Lakhs. Maximum allowed CPM: ₹1,500.”*
+*   **Hyper-Local Cricket Promo (RCB vs CSK):**
+    > *“Promote the 'Big Billion Days' teaser specifically to cricket fans in Karnataka and Tamil Nadu. Focus on the upcoming RCB vs CSK match on JioHotstar. Use slots that over-index on Southern demographics. Budget: ₹25 Lakhs.”*
+*   **Open Exchange Branding Campaign (Dove Quality):**
+    > *“Run a 14-day brand equity campaign for Dove. Target all available publishers (Open Exchange). Focus on 'Brand Safety Tier: Premium' inventory only. Distribute ₹1 Crore budget across Display and Video formats equally.”*
+
+### 📰 Seller Agent (SSP) Strategies
+*   **IPL Yield Optimization Brief:**
+    > *“Optimize floor prices for the upcoming IPL Playoffs. Set a 15% floor price premium on all Connected TV (CTV) Mid-rolls and Pre-rolls. Prioritize e-commerce brands (specifically Amazon and Flipkart) by offering a competitive 5% volume floor discount for package buys.”*
+
+---
+
 ## 📊 Core Features
 
 - **🔮 Publisher Strategy Evaluation**: A dedicated dry-run mode for publishers to preview eCPM optimization, partner discounts, fill-rate forecasts, and projected total yield uplifts (+%) in a specialized `yield-forecast-card` prior to launching configurations on the server.
