@@ -46,19 +46,42 @@ The system decomposes the monolithic ad-stack into specialized sub-agents to red
 - Node.js 20+
 - [Google AI Studio Key](https://aistudio.google.com/)
 
-### 2. Installation
+### 2. Installation & Setup
+
+#### 🍎 Linux & macOS (Bash / Zsh)
 ```bash
 # Clone the repository
 git clone https://github.com/sdeshpa7/AdCP-Showcase.git
 cd AdCP-Showcase
 
-# Install Python dependencies
-python -m venv .venv
+# Set up backend and activate virtual environment
+cd backend
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .
 
-# Install Frontend dependencies
-cd adcp-dashboard
+# Set up frontend dependencies
+cd ../frontend/adcp-dashboard
+npm install
+```
+
+#### 🪟 Windows (CMD / PowerShell)
+```cmd
+:: Clone the repository
+git clone https://github.com/sdeshpa7/AdCP-Showcase.git
+cd AdCP-Showcase
+
+:: Set up backend and activate virtual environment
+cd backend
+python -m venv .venv
+:: (CMD)
+call .venv\Scripts\activate.bat
+:: (PowerShell)
+:: .venv\Scripts\Activate.ps1
+pip install -e .
+
+:: Set up frontend dependencies
+cd ..\frontend\adcp-dashboard
 npm install
 ```
 
@@ -123,13 +146,28 @@ curl -X POST http://localhost:8001/mcp \
 ---
 
 ### Step 2: Launch the Dashboards
-In two separate terminals inside `frontend/adcp-dashboard/`:
 
+#### 🍎 Linux & macOS (Terminal Zsh/Bash)
+Navigate to the dashboard directory in two separate terminal windows:
 ```bash
 # Terminal 1: Advertiser Portal (Default: Port 5173)
+cd frontend/adcp-dashboard
 npm run dev
 
 # Terminal 2: Publisher Portal (Default: Port 5177 for Safari compatibility)
+cd frontend/adcp-dashboard
+npm run publisher
+```
+
+#### 🪟 Windows (CMD / PowerShell)
+Navigate to the dashboard directory in two separate console windows:
+```cmd
+:: Terminal 1: Advertiser Portal (Default: Port 5173)
+cd frontend\adcp-dashboard
+npm run dev
+
+:: Terminal 2: Publisher Portal (Default: Port 5177)
+cd frontend\adcp-dashboard
 npm run publisher
 ```
 
