@@ -88,6 +88,40 @@ This orchestrates:
 3. **Agent Servers**: Launches 5 Buyers (:8001-8005) and 5 Sellers (:9001-9005).
 4. **Campaign Execution**: Agents begin their autonomous workflow.
 
+---
+
+### 📡 Direct Agent Endpoints (MCP Node URLs)
+When the simulation is running, each individual advertiser and publisher operates as a fully decoupled **Model Context Protocol (MCP)** server. You can inspect, query, or hook them into any MCP-compliant manager or client using these dedicated endpoints:
+
+#### 🏢 Buyer Agents (Advertisers)
+| Advertiser Brand | Dedicated Port | Direct MCP Server Endpoint |
+| :--- | :---: | :--- |
+| **Flipkart** | `8001` | `http://localhost:8001/mcp` |
+| **Amazon India** | `8002` | `http://localhost:8002/mcp` |
+| **Jio** | `8003` | `http://localhost:8003/mcp` |
+| **Hindustan Unilever** | `8004` | `http://localhost:8004/mcp` |
+| **HDFC Bank** | `8005` | `http://localhost:8005/mcp` |
+
+#### 📰 Seller Agents (Publishers)
+| Publisher Inventory | Dedicated Port | Direct MCP Server Endpoint |
+| :--- | :---: | :--- |
+| **JioHotstar** | `9001` | `http://localhost:9001/mcp` |
+| **Cricinfo** | `9002` | `http://localhost:9002/mcp` |
+| **Myntra** | `9003` | `http://localhost:9003/mcp` |
+| **NDTV** | `9004` | `http://localhost:9004/mcp` |
+| **Amazon.in** | `9005` | `http://localhost:9005/mcp` |
+
+#### 🛠️ Direct Query Example (Fast Verification)
+To verify that an individual agent is online, execute a quick HTTP `POST` to their MCP endpoint:
+```bash
+curl -X POST http://localhost:8001/mcp \
+  -H "Authorization: Bearer local" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc": "2.0", "method": "tools/list", "params": {}, "id": 1}'
+```
+
+---
+
 ### Step 2: Launch the Dashboards
 In two separate terminals inside `frontend/adcp-dashboard/`:
 
