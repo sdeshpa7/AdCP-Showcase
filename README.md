@@ -144,7 +144,7 @@ npm run publisher
 ### 🏢 1. Live Intelligence Feed (Advertiser DSP Cockpit)
 *   **How to Access:**
     *   Navigate to **[http://localhost:5173](http://localhost:5173)** in your browser.
-    *   The **Strategic Intelligence Portal** operates dynamically on top of the Advertiser Dashboard, showcasing live multi-agent evaluations.
+    *   **Launch the Agent Workflow:** Under the Advertiser cockpit interface, fill in your campaign parameters (or use the preloaded defaults) and click the **"Create Campaign"** button. This directly signals the active Buyer Agent, spinning up the autonomous discovery, context auditing, and bidding pipeline in real-time.
 *   **What Happens in Detail:**
     *   **Context Ingestion:** The Advertiser Agent (DSP running `Gemma-3-27b-it`) ingests your active campaign briefs, mapping dynamic target criteria (e.g. Connected TV slots, category budgets).
     *   **Surgical Context Pruning:** Before sending queries to the LLM, the pre-evaluation metadata filter scans and prunes non-matching publisher slots (saving ~190 tokens per slot), compressing the prompt context footprint by **85%**.
@@ -154,6 +154,7 @@ npm run publisher
 ### 📰 2. Live Yield Feed (Publisher SSP Cockpit)
 *   **How to Access:**
     *   Open **[http://localhost:5177](http://localhost:5177)** in Safari or Chrome.
+    *   **Observe Autonomous Bidding Triggers:** Once you click the **"Create Campaign"** button on the Advertiser Dashboard (Port 5173), the active Buyer Agent automatically sends real-time bidding requests to the SSP server. The Publisher Cockpit instantly captures these inputs and displays safety evaluations, pricing matches, and updated transaction ledgers on-screen.
 *   **What Happens in Detail:**
     *   **Brand Safety Verification (Grok-3):** Upon receiving a bid request from the buyer agent, the Publisher Yield Orchestrator triggers `_brand_safety_check()`, prompting `Grok-3` to run a zero-shot compliance audit of the advertiser's reputation, domain, and competitive exclusions.
     *   **eCPM Floor Pricing Optimization:** The SSP automatically verifies incoming bid pricing against dynamic, pacing-adjusted publisher floors, dynamically rejecting bids below thresholds to secure optimal monetization yields.
