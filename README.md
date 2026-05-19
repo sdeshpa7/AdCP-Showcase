@@ -192,4 +192,4 @@ You can directly test the multi-agent negotiation, brand safety evaluation, and 
 ---
 
 ## 📄 License
-MIT License. Created as a portfolio project for AdTech AI Engineering.
+MIT License.
