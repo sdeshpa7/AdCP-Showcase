@@ -246,13 +246,37 @@ function App() {
   const periodRange = getSelectedDateRange();
 
   // Unified Filtering Logic for the entire dashboard
-  const activeBuys = (activeData.active_buys || []).filter(buy => {
+  const todayDate = new Date();
+  todayDate.setHours(0, 0, 0, 0);
+
+  const rawActiveBuys = activeData.active_buys || [];
+  const rawPastBuys = activeData.past_buys || [];
+  const allRawBuys = [...rawActiveBuys, ...rawPastBuys];
+
+  const allBuysProcessed = allRawBuys.map(buy => {
+    const bEnd = new Date(buy.end_date);
+    if (!isNaN(bEnd.getTime())) {
+      const checkEnd = new Date(bEnd);
+      checkEnd.setHours(23, 59, 59, 999);
+      if (checkEnd < todayDate) {
+        return {
+          ...buy,
+          status: 'completed'
+        };
+      }
+    }
+    return buy;
+  });
+
+  const activeBuys = allBuysProcessed.filter(buy => {
+    if (buy.status !== 'active') return false;
     const bStart = new Date(buy.start_date || '2026-05-01');
     const bEnd = new Date(buy.end_date || '2026-05-31');
     return bStart <= periodRange.end && bEnd >= periodRange.start;
   });
 
-  const completedBuys = (activeData.past_buys || []).filter(buy => {
+  const completedBuys = allBuysProcessed.filter(buy => {
+    if (buy.status !== 'completed') return false;
     const bStart = new Date(buy.start_date || '2026-05-01');
     const bEnd = new Date(buy.end_date || '2026-05-31');
     return bStart <= periodRange.end && bEnd >= periodRange.start;
@@ -294,8 +318,7 @@ function App() {
 
   const selectedCampaign = selectedCampaignId
     ? (() => {
-      const allBuys = [...(activeData?.active_buys || []), ...(activeData?.past_buys || [])];
-      const campaignBuys = allBuys.filter(b => (b.campaign_id || b.id) === selectedCampaignId);
+      const campaignBuys = allBuysProcessed.filter(b => (b.campaign_id || b.id) === selectedCampaignId);
       if (campaignBuys.length === 0) return null;
       return {
         id: selectedCampaignId,
@@ -337,7 +360,67 @@ function App() {
             campaignBuys.reduce((sum, b) => sum + (b.performance?.impressions || 1), 0)) * 1000,
           is_underpacing: campaignBuys.some(b => b.performance?.is_underpacing)
         },
-        line_items: campaignBuys
+        line_items: campaignBuys.map(b => {
+          if (b.daily_delivery && b.daily_delivery.length > 0) {
+            return b;
+          }
+          // Synthesize daily_delivery for historical or agent-created DB buys
+          const daily_delivery = [];
+          let start = new Date(b.start_date && b.start_date !== 'None' ? b.start_date : '2026-05-01');
+          let end = new Date(b.end_date && b.end_date !== 'None' ? b.end_date : '2026-05-31');
+          if (isNaN(start.getTime())) start = new Date('2026-05-01');
+          if (isNaN(end.getTime())) end = new Date('2026-05-31');
+          
+          let days = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
+          if (isNaN(days) || days <= 0) {
+            days = 30;
+          }
+          
+          const totalImps = b.performance?.impressions || 0;
+          const totalClicks = b.performance?.clicks || 0;
+          const totalSpend = b.performance?.spend || b.performance?.spent || 0;
+          
+          let remainingImps = totalImps;
+          let remainingClicks = totalClicks;
+          let remainingSpend = totalSpend;
+          
+          for (let d = 0; d < days; d++) {
+            const currentDate = new Date(start);
+            currentDate.setDate(start.getDate() + d);
+            const dateStr = currentDate.toISOString().split('T')[0];
+            
+            let dayImps = 0;
+            let dayClicks = 0;
+            let daySpend = 0;
+            
+            if (d === days - 1) {
+              dayImps = remainingImps;
+              dayClicks = remainingClicks;
+              daySpend = remainingSpend;
+            } else {
+              const factor = (1 / (days - d)) * (0.8 + Math.random() * 0.4);
+              dayImps = Math.min(remainingImps, Math.round(totalImps * factor));
+              dayClicks = Math.min(remainingClicks, Math.round(totalClicks * factor));
+              daySpend = Math.min(remainingSpend, parseFloat((totalSpend * factor).toFixed(2)));
+              
+              remainingImps -= dayImps;
+              remainingClicks -= dayClicks;
+              remainingSpend -= daySpend;
+            }
+            
+            daily_delivery.push({
+              date: dateStr,
+              impressions: dayImps,
+              clicks: dayClicks,
+              spend: daySpend
+            });
+          }
+          
+          return {
+            ...b,
+            daily_delivery
+          };
+        })
       };
     })()
     : null;
@@ -839,7 +922,14 @@ function App() {
                   target_reach: buys.reduce((s, b) => s + (b.target_reach || 0), 0),
                   impressions: buys.reduce((s, b) => s + (b.performance?.impressions || 0), 0),
                   reach: buys.reduce((s, b) => s + (b.performance?.reach || 0), 0),
-                  roas: buys.length > 0 ? buys.reduce((s, b) => s + (b.performance?.roas || 0), 0) / buys.length : 0,
+                  roas: (() => {
+                    const totalSpend = buys.reduce((sum, b) => sum + (b.performance?.spend || 0), 0);
+                    if (totalSpend > 0) {
+                      return buys.reduce((sum, b) => sum + (b.performance?.spend || 0) * (b.performance?.roas || 0), 0) / totalSpend;
+                    }
+                    const activeRoas = buys.filter(b => (b.performance?.roas || 0) > 0);
+                    return activeRoas.length > 0 ? activeRoas.reduce((sum, b) => sum + b.performance.roas, 0) / activeRoas.length : 0;
+                  })(),
                   lineItems: buys.length,
                   publishers: [...new Set(buys.map(b => b.publisher))]
                 }))
@@ -1413,7 +1503,7 @@ function App() {
                             if (detailSearchTerm) {
                               const term = detailSearchTerm.toLowerCase();
                               const matches =
-                                (li.line_item_name && li.line_item_name.toLowerCase().includes(term)) ||
+                                ((li.line_item_name || li.name) && (li.line_item_name || li.name).toLowerCase().includes(term)) ||
                                 (li.publisher && li.publisher.toLowerCase().includes(term)) ||
                                 (li.device && li.device.toLowerCase().includes(term)) ||
                                 (li.format && li.format.toLowerCase().includes(term)) ||
@@ -1425,14 +1515,14 @@ function App() {
                             // Read from pre-computed daily delivery time series
                             (li.daily_delivery || []).forEach(dd => {
                               log.push({
-                                date: new Date(dd.date),
-                                name: li.line_item_name,
-                                targeting: li.targeting,
-                                device: li.device,
-                                format: li.format,
-                                imps: dd.impressions,
-                                clicks: dd.clicks,
-                                spend: dd.spend
+                                date: dd.date ? new Date(dd.date) : new Date(),
+                                name: li.line_item_name || li.name || "Line Item",
+                                targeting: li.targeting || { gender: 'Both', age: '18+', geography: 'National', content: '' },
+                                device: li.device || 'Unknown',
+                                format: li.format || 'Unknown',
+                                imps: dd.impressions || 0,
+                                clicks: dd.clicks || 0,
+                                spend: dd.spend || 0
                               });
                             });
                           });
@@ -1440,18 +1530,18 @@ function App() {
                           return log
                             .sort((a, b) => b.date - a.date) // Sort by latest date first
                             .map((row, idx) => (
-                              <tr key={`${row.date.toISOString()}-${idx}`}>
-                                <td style={{ textAlign: 'left', fontWeight: 600 }}>{formatShortDate(row.date.toISOString())}</td>
+                              <tr key={`${row.date ? row.date.toISOString() : idx}-${idx}`}>
+                                <td style={{ textAlign: 'left', fontWeight: 600 }}>{row.date ? formatShortDate(row.date.toISOString()) : 'TBD'}</td>
                                 <td style={{ textAlign: 'left' }}>
                                   <div style={{ fontSize: '0.8rem', color: '#fff' }}>
-                                    {row.name} - {row.format} - {row.targeting.gender === 'Both' ? 'Male-Female' : row.targeting.gender} - {row.targeting.age}{selectedCampaign.targeting?.contentTarget ? ` - ${row.targeting.content}` : ''}
+                                    {(row.name || 'Line Item')} - {row.format || 'Unknown'} - {(row.targeting?.gender || 'Both') === 'Both' ? 'Male-Female' : (row.targeting?.gender || 'Both')} - {row.targeting?.age || '18+'}{selectedCampaign.targeting?.contentTarget ? ` - ${(row.targeting?.content || '')}` : ''}
                                   </div>
                                 </td>
                                 <td style={{ textAlign: 'center' }}>
-                                  <span style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(249, 115, 22, 0.1)', color: 'var(--accent-orange)' }}>{row.device === 'Android' ? 'AOS' : row.device}</span>
+                                  <span style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(249, 115, 22, 0.1)', color: 'var(--accent-orange)' }}>{(row.device === 'Android' ? 'AOS' : row.device) || 'Unknown'}</span>
                                 </td>
                                 <td style={{ textAlign: 'center' }}>{formatToMillions(row.imps)}</td>
-                                <td style={{ textAlign: 'center' }}>{row.clicks.toLocaleString()}</td>
+                                <td style={{ textAlign: 'center' }}>{(row.clicks || 0).toLocaleString()}</td>
                                 <td style={{ textAlign: 'center' }}>{formatToCr(row.spend)}</td>
                               </tr>
                             ));
@@ -1481,7 +1571,14 @@ function App() {
                     reach: allPeriodBuys.length > 1 ? Math.floor(rawReach * 0.75) : rawReach,
                     target_reach: allPeriodBuys.length > 1 ? Math.floor(rawTargetReach * 0.75) : rawTargetReach,
                     clicks: allPeriodBuys.reduce((sum, b) => sum + (b.performance?.clicks || 0), 0),
-                    roas: allPeriodBuys.length > 0 ? allPeriodBuys.reduce((sum, b) => sum + (b.performance?.roas || 0), 0) / allPeriodBuys.length : 0
+                    roas: (() => {
+                      const totalSpend = allPeriodBuys.reduce((sum, b) => sum + (b.performance?.spent || b.performance?.spend || 0), 0);
+                      if (totalSpend > 0) {
+                        return allPeriodBuys.reduce((sum, b) => sum + (b.performance?.spent || b.performance?.spend || 0) * (b.performance?.roas || 0), 0) / totalSpend;
+                      }
+                      const activeRoas = allPeriodBuys.filter(b => (b.performance?.roas || 0) > 0);
+                      return activeRoas.length > 0 ? activeRoas.reduce((sum, b) => sum + b.performance.roas, 0) / activeRoas.length : 0;
+                    })()
                   };
 
                   return (
@@ -1843,7 +1940,9 @@ function App() {
                         {(() => {
                           if (!activeData) return null;
                           const periodRange = getSelectedDateRange();
-                          const allBuys = campaignTab === 'active' ? (activeData.active_buys || []) : (activeData.past_buys || []);
+                          const allBuys = campaignTab === 'active' 
+                             ? allBuysProcessed.filter(b => b.status === 'active') 
+                             : allBuysProcessed.filter(b => b.status === 'completed');
 
                           // Filter buys based on period overlap
                           let buys = allBuys.filter(buy => {
@@ -1899,6 +1998,10 @@ function App() {
                                 target_reach: 0,
                                 clicks: 0,
                                 items: 0,
+                                spend: 0,
+                                weighted_roas_sum: 0,
+                                roas_simple_sum: 0,
+                                roas_simple_count: 0,
                                 start_date: buy.start_date || '2026-05-01',
                                 end_date: buy.end_date || '2026-05-31',
                                 is_underpacing: false
@@ -1914,6 +2017,16 @@ function App() {
                             campaignGroups[cid].target_reach += (buy.target_reach || 0);
                             campaignGroups[cid].clicks += (buy.performance?.clicks || 0);
                             campaignGroups[cid].items += 1;
+                            
+                            const bSpend = buy.performance?.spend || 0;
+                            const bRoas = buy.performance?.roas || 0;
+                            campaignGroups[cid].spend += bSpend;
+                            campaignGroups[cid].weighted_roas_sum += bSpend * bRoas;
+                            if (bRoas > 0) {
+                              campaignGroups[cid].roas_simple_sum += bRoas;
+                              campaignGroups[cid].roas_simple_count += 1;
+                            }
+                            
                             if (buy.publisher) campaignGroups[cid].publisher.add(buy.publisher);
                             if (buy.targeting?.geographies) {
                               buy.targeting.geographies.forEach(g => campaignGroups[cid].targeting.geographies.add(g));
@@ -2027,7 +2140,11 @@ function App() {
                                     ₹{campaign.impressions > 0 ? Math.round((campaign.budget * (parseFloat(delivered) / 100) / campaign.impressions) * 1000).toLocaleString('en-IN') : 0}
                                   </td>
                                   <td className="text-center" style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
-                                    {campaign.items > 0 ? (campaign.budget / 10000000 * 0.4).toFixed(1) : 0}x
+                                    {(campaign.spend > 0 
+                                      ? campaign.weighted_roas_sum / campaign.spend 
+                                      : campaign.roas_simple_count > 0 
+                                        ? campaign.roas_simple_sum / campaign.roas_simple_count 
+                                        : 0).toFixed(1)}x
                                   </td>
                                 </tr>
                               );

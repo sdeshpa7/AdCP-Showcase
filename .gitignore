@@ -28,6 +28,7 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+demo-video/*.mp4
 *.suo
 *.ntvs*
 *.njsproj
