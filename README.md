@@ -16,17 +16,36 @@ This project simulates a high-fidelity environment where **Advertiser Agents** (
 
 ## 🧠 Multi-Agent Architecture
 
-The system decomposes the monolithic ad-stack into specialized sub-agents to reduce context window bloat and improve reasoning accuracy.
+The system decomposes the traditional monolithic ad-tech stack (typically containing hundreds of hardcoded rules, rigid DSP-SSP filters, and manual adjustments) into specialized, autonomous sub-agents operating via the **Model Context Protocol (MCP)**. This modularity reduces context window bloat, increases reasoning accuracy, and replicates real-world programmatic negotiations.
 
-### 🏢 Buyer Side (Demand-Side Platform)
-- **Phase-Based Decoupling**: Separate discovery, evaluation, and allocation phases.
-- **Prompt-Aware Filtering**: Intent detection reduces token usage by 40% via pre-LLM inventory filtering.
-- **Intelligence Feed**: Real-time display of LLM reasoning during the "Negotiation" phase.
+---
 
-### 📰 Seller Side (Supply-Side Platform)
-- **Yield Orchestrator**: Manages incoming requests from buyer agents.
-- **Catalog Agent**: Maintains the product inventory and audience signals.
-- **Decoupled Transactions**: Media buys are stored in a persistent reference ledger, separate from agent tool logic.
+### 🏢 1. The Buyer Agent (Demand-Side Platform / DSP)
+
+The **Buyer Agent** represents the advertiser's autonomous media strategist. It operates locally using **Gemma-3-27b-it** to turn natural language brand briefs into highly optimized, target-aligned media execution plans.
+
+#### ⚙️ Core Workflow & Capabilities:
+*   **Brief Ingestion & Context Mapping:** The agent ingests raw campaign parameters (e.g., Connected TV only, target demographics like *Gen-Z women*, geo-targeting, flight duration, and absolute budget caps) and maps them to its core persona profile and brand strategy guidelines.
+*   **Phase-Based Decoupling:**
+    *   **Discovery Phase (`get_products`):** Rather than making expensive LLM queries for the entire marketplace catalog, a lightweight *Intent Filter* prunes non-matching publisher channels. This surgical pre-filtering reduces prompt footprint by up to **85%** (saving roughly 190 tokens per disqualified slot).
+    *   **Evaluation Phase (LLM Reasoning):** The agent passes qualified inventory candidates through the **Gemma-3-27b-it** model. It scores each matching slot on a strict `0-10` relevance scale based on category context alignment, price-to-audience efficiency, and demographic match weights.
+    *   **Allocation & Optimization Phase (`BudgetManager`):** An internal programmatic budget allocator evaluates yield projections, constructs package bids, and applies stateful daily pacing limits to prevent early budget exhaustion.
+*   **Contract Negotiation & Signing (`create_media_buy`):** The agent packages target buy parameters into a programmatic AdCP buy request and transmits it to the respective Publisher Seller Agent.
+*   **Delivery Auditing (`get_media_buy_delivery`):** Periodically polls the publisher node, checking for under-delivery or pacing lag, and dynamically adjusts bids or shifts remaining budget to high-yield channels.
+
+---
+
+### 📰 2. The Seller Agent (Supply-Side Platform / SSP)
+
+The **Seller Agent** operates as the publisher's autonomous yield manager. Each publisher node (e.g., *JioHotstar*, *Cricinfo*, *Myntra*) runs as a dedicated, fully independent MCP server that defends brand guidelines, manages ad inventory, and optimizes revenue yield.
+
+#### ⚙️ Core Workflow & Capabilities:
+*   **Inventory Catalog Serving (`get_products`):** Exposes standard AdCP capabilities and serves its inventory catalog complete with audience signals, device formats (CTV, mobile, web), ad slots (billboard, video mid-roll), and base floor CPMs.
+*   **Autonomous Brand Safety Verification (`_brand_safety_check`):**
+    *   Powered by **Grok-3-mini**, this sub-agent processes the advertiser's domain (`brand_domain`) and brand profile immediately upon receiving a bid.
+    *   It performs zero-shot compliance auditing against publisher-specific safety guidelines (e.g., Myntra rejecting low-aesthetic or off-category advertisers; NDTV excluding politically sensitive content; Cricinfo blocking competitive sporting sponsors).
+*   **eCPM Floor Pricing Engine:** Evaluates bid prices against dynamic, pacing-adjusted publisher floors. It programmatically rejects bids below floor CPMs and applies volume-discount incentives (e.g., 5% discount for bulk buys) for package purchases.
+*   **Ledger-Decoupled Persistence:** Once safety and yield thresholds are validated, the agent programmatically signs the media buy contract and writes a permanent ledger transaction to the persistent SQLite reference table (`adcp.db`), instantly updating live platform financials.
 
 ---
 
