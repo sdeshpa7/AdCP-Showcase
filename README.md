@@ -183,7 +183,7 @@ Navigate to the dashboard directory in two separate terminal windows:
 cd frontend/adcp-dashboard
 npm run dev
 
-# Terminal 2: Publisher Portal (Default: Port 5177 for Safari compatibility)
+# Terminal 2: Publisher Portal (Default: Port 5174 for Safari compatibility)
 cd frontend/adcp-dashboard
 npm run publisher
 ```
@@ -195,13 +195,13 @@ Navigate to the dashboard directory in two separate console windows:
 cd frontend\adcp-dashboard
 npm run dev
 
-:: Terminal 2: Publisher Portal (Default: Port 5177)
+:: Terminal 2: Publisher Portal (Default: Port 5174)
 cd frontend\adcp-dashboard
 npm run publisher
 ```
 
 - **Advertiser Portal**: **[http://localhost:5173](http://localhost:5173)**
-- **Publisher Portal**: **[http://localhost:5177](http://localhost:5177)**
+- **Publisher Portal**: **[http://localhost:5174](http://localhost:5174)**
 - **Backend API Server**: **[http://localhost:8010](http://localhost:8010)**
 
 ---
@@ -220,7 +220,7 @@ npm run publisher
 
 ### 📰 2. Live Yield Feed (Publisher SSP Cockpit)
 *   **How to Access:**
-    *   Open **[http://localhost:5177](http://localhost:5177)** in Safari or Chrome.
+    *   Open **[http://localhost:5174](http://localhost:5174)** in Safari or Chrome.
     *   **Observe Autonomous Bidding Triggers:** Once you click the **"Create Campaign"** button on the Advertiser Dashboard (Port 5173), the active Buyer Agent automatically sends real-time bidding requests to the SSP server. The Publisher Cockpit instantly captures these inputs and displays safety evaluations, pricing matches, and updated transaction ledgers on-screen.
 *   **What Happens in Detail:**
     *   **Brand Safety Verification (Grok-3):** Upon receiving a bid request from the buyer agent, the Publisher Yield Orchestrator triggers `_brand_safety_check()`, prompting `Grok-3` to run a zero-shot compliance audit of the advertiser's reputation, domain, and competitive exclusions.

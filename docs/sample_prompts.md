@@ -39,7 +39,7 @@ Run a 14-day brand equity campaign for Dove. Target all available publishers (Op
 ---
 
 ## 📰 Seller Agent (SSP) Prompts
-Use these instructions to configure optimization strategies in the **Publisher Portal** (`http://localhost:5177`) to test yielding behaviors:
+Use these instructions to configure optimization strategies in the **Publisher Portal** (`http://localhost:5174`) to test yielding behaviors:
 
 ### Scenario 1: Premium Inventory Optimization & Floor Adjustments
 ```text
